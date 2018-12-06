@@ -15,10 +15,3 @@
     - name: "Retrieve kops cluster facts"
       kops_facts:
         name: thisclusterdoesnotexist
-
-    #- kops_cluster:
-        #name: test
-        #state_store: "s3://horsprod-france-active-state-store"
-        #kubernetes_version: 1.10.11
-        #rolling_update: yes
-        #state: present

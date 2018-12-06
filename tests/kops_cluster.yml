@@ -1,0 +1,12 @@
+---
+
+- name: "Tests kops cluster"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+
+    - name: "Retrieve kops cluster facts"
+      kops_cluster:
+        name: test
+        state: stopped
