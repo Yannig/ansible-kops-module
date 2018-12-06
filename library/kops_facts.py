@@ -95,12 +95,6 @@ class kops_facts():
 
         return nodes_definitions
 
-    def get_cluster_definition(self, cluster_name):
-        (rc, out, err) = self.run_command([ "get", "cluster", cluster_name, "-o=yaml"])
-        if rc > 0:
-            self.module.fail_json(msg=err.strip())
-        cluster_definition = yaml.load(out)
-        cluster_definition["instancegroups"] = self.get_nodes(cluster_name)
         return cluster_definition
 
     def get_clusters(self, name=None):
@@ -108,32 +102,26 @@ class kops_facts():
         if name is not None:
             cmd += [ "--name", name ]
 
-        (rc, out, err) = self.run_command(cmd)
+        (rc, out, err) = self.run_command(cmd + [ "-o=yaml" ])
         if rc > 0:
             self.module.fail_json(msg=err.strip())
-        clusters = []
-        skip_first_line = True
-        for line in out.split("\n"):
-            if skip_first_line:
-                skip_first_line = False
-                continue
-            cluster_name = line.split("\t")[0]
-            if len(cluster_name) > 0:
-                clusters.append(cluster_name)
-        return clusters
+        clusters_definitions = {}
+        for cluster in out.split("---\n"):
+            cluster_definition = yaml.load(cluster)
+            cluster_name = cluster_definition['metadata']['name']
+            cluster_definition["instancegroups"] = self.get_nodes(cluster_name)
+            clusters_definitions[cluster_name] = cluster_definition
+        return clusters_definitions
 
 
     def get_facts(self):
         self.kops_cluster = self.get_clusters()
-        clusters = self.get_clusters(self.module.params['name'])
-        clusters_definition = {}
-        for cluster_name in clusters:
-            clusters_definition[cluster_name] = self.get_cluster_definition(cluster_name)
+        clusters_definitions = self.get_clusters(self.module.params['name'])
 
         return dict(
             kops_path=self.kops_cmd,
-            kops_clusters=clusters,
-            kops_clusters_definitions=clusters_definition,
+            kops_clusters=clusters_definitions.keys(),
+            kops_clusters_definitions=clusters_definitions,
         )
 
 
