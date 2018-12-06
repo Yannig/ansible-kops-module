@@ -1,0 +1,24 @@
+---
+
+- name: "Retrieve kops cluster facts"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: "Retrieve kops cluster facts"
+      kops_facts: {}
+
+    - debug: var=kops_clusters
+    - debug: var=kops_clusters_definitions
+    - debug: var=kops_path
+
+    - name: "Retrieve kops cluster facts"
+      kops_facts:
+        name: thisclusterdoesnotexist
+
+    #- kops_cluster:
+        #name: test
+        #state_store: "s3://horsprod-france-active-state-store"
+        #kubernetes_version: 1.10.11
+        #rolling_update: yes
+        #state: present
