@@ -16,7 +16,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 ---
-module: kops_facts
+module: kops_cluster
 short_description: Handle cluster create by kops
 description:
      - Blabla
@@ -36,8 +36,10 @@ author:
 '''
 
 EXAMPLES = '''
-- name: Retrieve kops cluster informations
-  kops_facts:
+- name: Create kube cluster with kops
+  kops_cluster:
+    name: test
+    state: present
 '''
 
 RETURN = '''
@@ -46,31 +48,18 @@ RETURN = '''
 
 from ansible.module_utils.kops import Kops
 
-class KopsFacts(Kops):
-
-    def get_facts(self):
-        self.kops_cluster = self.get_clusters()
-        clusters_definitions = self.get_clusters(self.module.params['name'])
-
-        return dict(
-            kops_path=self.kops_cmd,
-            kops_clusters=clusters_definitions.keys(),
-            kops_clusters_definitions=clusters_definitions,
-        )
-
+class KopsCluster(Kops):
 
     def exit_json(self):
         results = dict(
             changed=False,
-            ansible_facts=self.get_facts()
         )
 
         self.module.exit_json(**results)
 
 def main():
-
-    facts = KopsFacts()
-    facts.exit_json()
+    cluster = KopsCluster()
+    cluster.exit_json()
 
 if __name__ == '__main__':
     main()
