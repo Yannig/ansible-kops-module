@@ -80,13 +80,30 @@ class kops_facts():
         return self.module.run_command([self.kops_cmd ] + self.kops_args + options)
 
 
+    def get_nodes(self, cluster_name):
+        cmd = [ "get", "instancegroups", "--name", cluster_name ]
+
+        (rc, out, err) = self.run_command(cmd + [ "-o=yaml" ])
+        if rc > 0:
+            self.module.fail_json(msg=err.strip())
+
+        nodes_definitions = {}
+        for ig in out.split("---\n"):
+            definition = yaml.load(ig)
+            name = definition['metadata']['name']
+            nodes_definitions[name] = definition
+
+        return nodes_definitions
+
     def get_cluster_definition(self, cluster_name):
         (rc, out, err) = self.run_command([ "get", "cluster", cluster_name, "-o=yaml"])
         if rc > 0:
             self.module.fail_json(msg=err.strip())
-        return yaml.load(out)
+        cluster_definition = yaml.load(out)
+        cluster_definition["instancegroups"] = self.get_nodes(cluster_name)
+        return cluster_definition
 
-    def get_clusters(self, name = None):
+    def get_clusters(self, name=None):
         cmd = [ "get", "clusters"]
         if name is not None:
             cmd += [ "--name", name ]
