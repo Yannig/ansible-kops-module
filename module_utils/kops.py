@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 from ansible.module_utils.basic import AnsibleModule
-import re, yaml
+import yaml
 
 class Kops():
 
@@ -16,15 +16,18 @@ class Kops():
     kops_cmd = None
     kops_cluster = []
     kops_args = []
+    default_module_args = dict(
+        state_store=dict(type='str'),
+        name=dict(type='str'),
+        kops_cmd=dict(type='str'),
+    )
 
-    def __init__(self):
+    def __init__(self, addition_module_args=dict()):
         self.module = AnsibleModule(
-            argument_spec=dict(
-                state_store=dict(type='str'),
-                name=dict(type='str'),
-                kops_cmd=dict(type='str'),
-                state=dict(choices=['present', 'absent', 'stopped', 'started'], default='present'),
-            ),
+          argument_spec=dict(
+            self.default_module_args,
+            **addition_module_args
+          )
         )
         self._detect_kops_cmd()
 
@@ -62,19 +65,22 @@ class Kops():
 
         return cluster_definition
 
-    def get_clusters(self, name=None):
+    def get_clusters(self, name=None, retrieve_ig=True, failed_when_not_found=True):
         cmd = [ "get", "clusters"]
         if name is not None:
             cmd += [ "--name", name ]
 
         (rc, out, err) = self.run_command(cmd + [ "-o=yaml" ])
         if rc > 0:
+            if not failed_when_not_found and name is not None:
+                return {}
             self.module.fail_json(msg=err.strip())
         clusters_definitions = {}
         for cluster in out.split("---\n"):
             cluster_definition = yaml.load(cluster)
             cluster_name = cluster_definition['metadata']['name']
-            cluster_definition["instancegroups"] = self.get_nodes(cluster_name)
+            if retrieve_ig:
+                cluster_definition["instancegroups"] = self.get_nodes(cluster_name)
             clusters_definitions[cluster_name] = cluster_definition
         return clusters_definitions
 

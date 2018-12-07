@@ -50,7 +50,26 @@ from ansible.module_utils.kops import Kops
 
 class KopsCluster(Kops):
 
+    def __init__(self):
+        addition_module_args = dict(
+          state=dict(choices=['present', 'absent', 'stopped', 'started'], default='present')
+        )
+        super(KopsCluster, self).__init__(addition_module_args=addition_module_args)
+
+    def check_cluster_state(self):
+
+        cluster_name = self.module.params['name']
+        state = self.module.params['state']
+        defined_clusters = self.get_clusters(name=cluster_name, retrieve_ig=False, failed_when_not_found=False)
+
+        if state == 'present' and cluster_name in defined_clusters:
+            self.module.exit_json(changed=False)
+
+        if state == 'stopped' and cluster_name in defined_clusters:
+            self.module.exit_json(changed=False)
+
     def exit_json(self):
+        self.check_cluster_state()
         results = dict(
             changed=False,
         )

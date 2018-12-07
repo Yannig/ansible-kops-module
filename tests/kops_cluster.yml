@@ -9,4 +9,9 @@
     - name: "Retrieve kops cluster facts"
       kops_cluster:
         name: test
+        state: present
+
+    - name: "Retrieve kops cluster facts"
+      kops_cluster:
+        name: test
         state: stopped
