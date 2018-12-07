@@ -3,15 +3,25 @@
 - name: "Tests kops cluster"
   hosts: localhost
   connection: local
+  vars:
+    cluster_name: "test.fqdn"
+    cluster_zones: "us-east-1a"
   gather_facts: no
   tasks:
 
-    - name: "Retrieve kops cluster facts"
+    - name: "Delete kops cluster"
       kops_cluster:
-        name: test
+        name: "{{ cluster_name }}"
+        state: absent
+
+    - name: "Create kops cluster"
+      kops_cluster:
+        name: "{{ cluster_name }}"
+        cloud: "aws" # default
+        zones:  "{{ cluster_zones }}"
         state: present
 
-    - name: "Retrieve kops cluster facts"
+    - name: "Delete kops cluster"
       kops_cluster:
-        name: test
-        state: stopped
+        name: "{{ cluster_name }}"
+        state: absent

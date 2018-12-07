@@ -55,9 +55,62 @@ class KopsCluster(Kops):
     def __init__(self):
         """Init module parameters"""
         addition_module_args = dict(
-            state=dict(choices=['present', 'absent', 'stopped', 'started'], default='present')
+            cloud=dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
+            state=dict(choices=['present', 'absent', 'started'], default='present'),
+            zones=dict(type=str),
         )
         super(KopsCluster, self).__init__(addition_module_args=addition_module_args)
+
+    def delete_cluster(self, cluster_name):
+        """Delete cluster"""
+        (result, out, err) = self.run_command(["delete", "cluster", "--name", cluster_name])
+        if result > 0:
+            self.module.fail_json(msg=err)
+        return dict(
+            changed=True,
+            kops_output=out,
+            cluster_name=cluster_name,
+        )
+
+    def create_cluster(self, cluster_name):
+        """Create cluster using kops"""
+        cloud = self.module.params['cloud']
+        kops_params = ["--cloud", cloud]
+        if cloud == 'aws':
+            zones = self.module.params['zones']
+            if zones is None:
+                self.module.fail_json(msg="Please provide zones option when creating kops cluster")
+            kops_params += ["--zones", zones]
+        cmd = ["create", "cluster", "--name", cluster_name] + kops_params
+        (result, out, err) = self.run_command(cmd)
+        if result > 0:
+            self.module.fail_json(msg=err)
+        return dict(
+            changed=True,
+            cluster_name=cluster_name,
+            kops_output=out
+        )
+
+
+    def apply_present(self, cluster_name, cluster_exist, defined_clusters):
+        """Create cluster if does not exist"""
+        if cluster_exist:
+            return dict(
+                changed=False,
+                cluster_name=cluster_name,
+                defined_clusters=defined_clusters
+            )
+        return self.create_cluster(cluster_name)
+
+
+    def apply_absent(self, cluster_name, cluster_exist):
+        """Delete cluster if cluster exist"""
+        if not cluster_exist:
+            return dict(
+                changed=False,
+                cluster_name=cluster_name,
+            )
+        return self.delete_cluster(cluster_name)
 
 
     def check_cluster_state(self):
@@ -69,22 +122,15 @@ class KopsCluster(Kops):
             retrieve_ig=False,
             failed_when_not_found=False
         )
+        cluster_exist = defined_clusters.get(cluster_name) is not None
 
-        if state == 'present' and cluster_name in defined_clusters:
-            return dict(
-                changed=False,
-                cluster_name=cluster_name,
-                defined_clusters=defined_clusters
-            )
+        if state in ['present', 'started']:
+            return self.apply_present(cluster_name, cluster_exist, defined_clusters)
 
-        if state == 'stopped' and cluster_name in defined_clusters:
-            return dict(
-                changed=False,
-                cluster_name=cluster_name,
-                defined_clusters=defined_clusters
-            )
+        if state == 'absent':
+            return self.apply_absent(cluster_name, cluster_exist)
 
-        self.module.fail_json(msg="Operation not supported")
+        self.module.fail_json(msg="Operation not supported", defined_clusters=defined_clusters)
         return None
 
 
