@@ -3,11 +3,9 @@
 #
 # (c) 2018, Yannig Perré <yannig.perre@gmail.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# pylint: disable=invalid-name,dangerous-default-value,duplicate-code
 
-"""
-    This class handle kops communication for Kops Ansible modules
-"""
-# pylint: disable=invalid-name,dangerous-default-value
+"""This class handle kops communication for Kops Ansible modules"""
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type

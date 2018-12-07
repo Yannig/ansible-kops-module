@@ -3,11 +3,14 @@
 #
 # (c) 2018, Yannig Perré <yannig.perre@gmail.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# pylint: disable=invalid-name,dangerous-default-value,duplicate-code
+
+"""Retrieve information about defined kops cluster"""
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.kops import Kops
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
@@ -44,12 +47,11 @@ RETURN = '''
 ---
 '''
 
-from ansible.module_utils.kops import Kops
-
 class KopsFacts(Kops):
+    """Retrieve facts from existing cluster"""
 
     def get_facts(self):
-        self.kops_cluster = self.get_clusters()
+        """Retrieve clusters definition"""
         clusters_definitions = self.get_clusters(self.module.params['name'])
 
         return dict(
@@ -60,6 +62,7 @@ class KopsFacts(Kops):
 
 
     def exit_json(self):
+        """Send back result to Ansible"""
         results = dict(
             changed=False,
             ansible_facts=self.get_facts()
@@ -67,10 +70,12 @@ class KopsFacts(Kops):
 
         self.module.exit_json(**results)
 
-def main():
 
+def main():
+    """Start facts gathering"""
     facts = KopsFacts()
     facts.exit_json()
+
 
 if __name__ == '__main__':
     main()
