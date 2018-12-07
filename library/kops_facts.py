@@ -20,22 +20,39 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 DOCUMENTATION = '''
 ---
 module: kops_facts
-short_description: Handle cluster create by kops
+short_description: Retrieve k8s cluster defined with kops
 description:
-     - Blabla
-     - Blabla
+     - Retrieve various informations of existing cluster defined using kops
 version_added: "2.8"
 options:
-  to_be_defined:
+  name:
      description:
-       - description
+       - FQDN name of the cluster (eg: test.example.org)
+     type: string
+     required: true
+  state_store:
+     description:
+       - State store (eg: s3://my-state-store)
      type: string
      required: false
-     default: false
+     default: None
+  kops_cmd:
+     description:
+       - kops bin path
+     type: string
+     required: false
+     default: None
+  failed_when_not_found:
+     description:
+       - Module will crash if cluster doesn't exist. No crash by default.
+     type: string
+     required: false
+     default: False
+
 notes:
-   - blabla
+   - kops bin is required
 author:
-    - Yannig Perré
+   - Yannig Perré
 '''
 
 EXAMPLES = '''

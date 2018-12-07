@@ -20,22 +20,55 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 DOCUMENTATION = '''
 ---
 module: kops_cluster
-short_description: Handle cluster create by kops
+short_description: Handle cluster creation with kops
 description:
-     - Blabla
-     - Blabla
+     - Let you create or delete cluster using kops
 version_added: "2.8"
 options:
-  to_be_defined:
+  name:
      description:
-       - description
+       - FQDN name of the cluster (eg: test.example.org)
+     type: string
+     required: true
+  state_store:
+     description:
+       - State store (eg: s3://my-state-store)
      type: string
      required: false
-     default: false
+     default: None
+  kops_cmd:
+     description:
+       - kops bin path
+     type: string
+     required: false
+     default: None
+  cloud:
+     description:
+       - kops bin path
+     type: string
+     required: false
+     default: None
+  zones:
+     description:
+       - zones where the cluster will be created (eg: eu-west-1a or eu-west-1a,eu-west-1b )
+       - this parameter is needed when creating the cluster
+     type: string
+     required: false
+     default: None
+  state:
+     description:
+       - If C(present), cluster will be created
+       - If C(started), cluster will be created and check that the cluster is started
+       - If C(absent), cluster will be deleted
+     type: string
+     required: false
+     default: None
+     choices: [ present, started, absent ]
+
 notes:
-   - blabla
+   - kops bin is required
 author:
-    - Yannig Perré
+   - Yannig Perré
 '''
 
 EXAMPLES = '''
@@ -57,7 +90,7 @@ class KopsCluster(Kops):
         addition_module_args = dict(
             cloud=dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
             state=dict(choices=['present', 'absent', 'started'], default='present'),
-            zones=dict(type=str),
+            zones=dict(type=list),
         )
         super(KopsCluster, self).__init__(addition_module_args=addition_module_args)
 
