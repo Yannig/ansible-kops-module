@@ -4,6 +4,11 @@
 # (c) 2018, Yannig Perré <yannig.perre@gmail.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+"""
+    This class handle kops communication for Kops Ansible modules
+"""
+# pylint: disable=invalid-name,dangerous-default-value
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -11,6 +16,7 @@ from ansible.module_utils.basic import AnsibleModule
 import yaml
 
 class Kops():
+    """handle kops communication by detecting kops bin path and setting kops options"""
 
     module = None
     kops_cmd = None
@@ -22,17 +28,20 @@ class Kops():
         kops_cmd=dict(type='str'),
     )
 
+
     def __init__(self, addition_module_args=dict()):
+        """Init Ansible module options"""
         self.module = AnsibleModule(
-          argument_spec=dict(
-            self.default_module_args,
-            **addition_module_args
-          )
+            argument_spec=dict(
+                self.default_module_args,
+                **addition_module_args
+            )
         )
         self._detect_kops_cmd()
 
 
     def _detect_kops_cmd(self):
+        """Find where is stored kops binary"""
         self.kops_cmd = self.module.params['kops_cmd']
         if self.kops_cmd is None:
             self.kops_cmd = self.module.get_bin_path('kops')
@@ -41,40 +50,43 @@ class Kops():
             self.module.fail_json(msg="Unable to locate kops binary")
 
         if self.module.params['state_store'] is not None:
-            self.kops_args += [ '--state', self.module.params['state_store'] ]
+            self.kops_args += ['--state', self.module.params['state_store']]
 
 
     def run_command(self, options):
-        return self.module.run_command([self.kops_cmd ] + self.kops_args + options)
+        """Run kops using kops arguments"""
+        return self.module.run_command([self.kops_cmd] + self.kops_args + options)
 
 
     def get_nodes(self, cluster_name):
-        cmd = [ "get", "instancegroups", "--name", cluster_name ]
+        """Retrieve instance groups (nodes, master)"""
+        cmd = ["get", "instancegroups", "--name", cluster_name]
 
-        (rc, out, err) = self.run_command(cmd + [ "-o=yaml" ])
-        if rc > 0:
+        (result, out, err) = self.run_command(cmd + ["-o=yaml"])
+        if result > 0:
             self.module.fail_json(msg=err.strip())
 
         nodes_definitions = {}
-        for ig in out.split("---\n"):
-            definition = yaml.load(ig)
+        for istance_group in out.split("---\n"):
+            definition = yaml.load(istance_group)
             name = definition['metadata']['name']
             nodes_definitions[name] = definition
 
         return nodes_definitions
 
-        return cluster_definition
 
     def get_clusters(self, name=None, retrieve_ig=True, failed_when_not_found=True):
-        cmd = [ "get", "clusters"]
+        """Retrieve defined clusters"""
+        cmd = ["get", "clusters"]
         if name is not None:
-            cmd += [ "--name", name ]
+            cmd += ["--name", name]
 
-        (rc, out, err) = self.run_command(cmd + [ "-o=yaml" ])
-        if rc > 0:
+        (result, out, err) = self.run_command(cmd + ["-o=yaml"])
+        if result > 0:
             if not failed_when_not_found and name is not None:
                 return {}
             self.module.fail_json(msg=err.strip())
+
         clusters_definitions = {}
         for cluster in out.split("---\n"):
             cluster_definition = yaml.load(cluster)
@@ -83,5 +95,3 @@ class Kops():
                 cluster_definition["instancegroups"] = self.get_nodes(cluster_name)
             clusters_definitions[cluster_name] = cluster_definition
         return clusters_definitions
-
-
