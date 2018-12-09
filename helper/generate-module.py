@@ -13,7 +13,7 @@ modules_output = os.path.join(path, '../generated-modules')
 
 env = Environment(loader = FileSystemLoader(modules_path))
 
-option_to_ignore = ["yes"]
+option_to_ignore = ["yes", "help"]
 
 def get_ansible_type(option_type):
     if option_type is None: return 'bool'
