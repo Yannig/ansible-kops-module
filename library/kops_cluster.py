@@ -51,7 +51,7 @@ options:
      required: false
      default: None
      choices: [ present, started, absent ]
-{%- for option in cluster_options %}
+{%- for option in cluster_options + rolling_update_options %}
   {{ option.name }}:
      description:
        - {{ option.help|replace('--', '') }}
@@ -84,7 +84,7 @@ class KopsCluster(Kops):
         addition_module_args = dict(
             state = dict(choices=['present', 'absent', 'started'], default='present'),
             cloud = dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
-{%- for option in cluster_options %}
+{%- for option in cluster_options + rolling_update_options %}
 {%    if option.name not in ['cloud'] -%}
 {{''}}            {{ option.name }} = dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
 {%-    endif %}
