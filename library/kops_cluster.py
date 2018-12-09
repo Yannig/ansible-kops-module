@@ -135,7 +135,7 @@ class KopsCluster(Kops):
                 if result > 0:
                     self.module.fail_json(msg=err)
 
-                cmd = ["rolling-update", "cluster", cluster_name, "--yes"]
+                cmd = ["rolling-update", "cluster", cluster_name, "--cloudonly"]
                 (result, out, err) = self.run_command(cmd)
                 if result > 0:
                     self.module.fail_json(msg=err)
@@ -143,8 +143,8 @@ class KopsCluster(Kops):
 
                 if changed:
                     cmd = ["rolling-update", "cluster", cluster_name, "--yes"]
-                    if self.module.params['cloud_only']:
-                        cmd += ["--cloud-only"]
+                    if self.module.params['cloudonly']:
+                        cmd += ["--cloudonly"]
 
                     (result, out, err) = self.run_command(cmd)
                     if result > 0:
