@@ -150,13 +150,18 @@ class KopsCluster(Kops):
                     if result > 0:
                         self.module.fail_json(msg=err)
 
+                return dict(
+                    changed=changed,
+                    cluster_name=cluster_name,
+                    update_operations=update_operations,
+                    update_output=update_output,
+                    rolling_update_output=out,
+                    rolling_update_operations=err,
+                )
             return dict(
-                changed=changed,
+                changed=False,
                 cluster_name=cluster_name,
-                update_operations=update_operations,
-                update_output=update_output,
-                rolling_update_output=out,
-                rolling_update_operations=err,
+                defined_clusters=defined_clusters
             )
         return self.create_cluster(cluster_name)
 
