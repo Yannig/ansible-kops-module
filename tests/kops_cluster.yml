@@ -6,6 +6,8 @@
   vars:
     cluster_name: "test.fqdn"
     cluster_zones: "us-east-1a"
+  environment:
+    KUBECONFIG: "{{ playbook_dir}}/kubeconfig"
   gather_facts: no
   tasks:
 
@@ -19,7 +21,16 @@
         name: "{{ cluster_name }}"
         cloud: "aws" # default
         zones:  "{{ cluster_zones }}"
+        master_count: 1
+        node_count: 1
         state: present
+
+    - name: "Start kops cluster"
+      tags: started
+      kops_cluster:
+        name: "{{ cluster_name }}"
+        cloudonly: yes
+        state: started
 
     - name: "Delete kops cluster"
       kops_cluster:
