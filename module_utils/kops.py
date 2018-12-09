@@ -11,6 +11,7 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.six import iteritems
 import yaml
 
 class Kops():
@@ -25,16 +26,22 @@ class Kops():
         name=dict(type='str'),
         kops_cmd=dict(type='str'),
     )
+    optional_module_args = None
+    options_definition = {}
 
-
-    def __init__(self, addition_module_args=dict()):
+    def __init__(self, addition_module_args=None, options_definition=None):
         """Init Ansible module options"""
+        if addition_module_args is not None:
+            self.addition_module_args = addition_module_args
+
         self.module = AnsibleModule(
             argument_spec=dict(
                 self.default_module_args,
                 **addition_module_args
             )
         )
+        if options_definition is not None:
+            self.options_definition = options_definition
         self._detect_kops_cmd()
 
 
@@ -50,10 +57,25 @@ class Kops():
         if self.module.params['state_store'] is not None:
             self.kops_args += ['--state', self.module.params['state_store']]
 
+        # Construct command to launch using options definition
+        for k, v in iteritems(self.options_definition):
+            if self.module.params[k] is None: continue
+            if v['type'] == 'bool':
+                self.kops_args += ['--' + v['alias']]
+            else:
+                self.kops_args += ['--' + v['alias'], self.module.params[k]]
 
     def run_command(self, options):
         """Run kops using kops arguments"""
-        return self.module.run_command([self.kops_cmd] + self.kops_args + options)
+        try:
+            return self.module.run_command([self.kops_cmd] + self.kops_args + options)
+        except:
+            self.module.fail_json(
+                msg="error while launching kops",
+                kops_cmd=self.kops_cmd,
+                kops_args=self.kops_args,
+                kops_options=options,
+            )
 
 
     def get_nodes(self, cluster_name):

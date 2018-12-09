@@ -42,19 +42,6 @@ options:
      type: string
      required: false
      default: None
-  cloud:
-     description:
-       - kops bin path
-     type: string
-     required: false
-     default: None
-  zones:
-     description:
-       - zones where the cluster will be created (eg: eu-west-1a or eu-west-1a,eu-west-1b )
-       - this parameter is needed when creating the cluster
-     type: string
-     required: false
-     default: None
   state:
      description:
        - If C(present), cluster will be created
@@ -64,7 +51,14 @@ options:
      required: false
      default: None
      choices: [ present, started, absent ]
-
+{%- for option in cluster_options %}
+  {{ option.name }}:
+     description:
+       - {{ option.help|replace('--', '') }}
+     type: {{ option.type|replace('str', 'string') }}
+     required: false
+     default: {{ option.default }}
+{%- endfor %}
 notes:
    - kops bin is required
 author:
@@ -88,15 +82,24 @@ class KopsCluster(Kops):
     def __init__(self):
         """Init module parameters"""
         addition_module_args = dict(
-            cloud=dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
-            state=dict(choices=['present', 'absent', 'started'], default='present'),
-            zones=dict(type=list),
+            state = dict(choices=['present', 'absent', 'started'], default='present'),
+            cloud = dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
+{%- for option in cluster_options %}
+{%    if option.name not in ['cloud'] -%}
+{{''}}            {{ option.name }} = dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
+{%-    endif %}
+{%- endfor %}
         )
-        super(KopsCluster, self).__init__(addition_module_args=addition_module_args)
+        options_definition = {
+{%- for option in cluster_options %}
+            '{{ option.name }}': {{ option }},
+{%- endfor %}
+        }
+        super(KopsCluster, self).__init__(addition_module_args, options_definition)
 
     def delete_cluster(self, cluster_name):
         """Delete cluster"""
-        (result, out, err) = self.run_command(["delete", "cluster", "--name", cluster_name])
+        (result, out, err) = self.run_command(["delete", "cluster", "--yes", "--name", cluster_name])
         if result > 0:
             self.module.fail_json(msg=err)
         return dict(
@@ -107,14 +110,7 @@ class KopsCluster(Kops):
 
     def create_cluster(self, cluster_name):
         """Create cluster using kops"""
-        cloud = self.module.params['cloud']
-        kops_params = ["--cloud", cloud]
-        if cloud == 'aws':
-            zones = self.module.params['zones']
-            if zones is None:
-                self.module.fail_json(msg="Please provide zones option when creating kops cluster")
-            kops_params += ["--zones", zones]
-        cmd = ["create", "cluster", "--name", cluster_name] + kops_params
+        cmd = ["create", "cluster", "--name", cluster_name]
         (result, out, err) = self.run_command(cmd)
         if result > 0:
             self.module.fail_json(msg=err)
