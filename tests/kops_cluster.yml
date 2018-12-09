@@ -12,27 +12,29 @@
   tasks:
 
     - name: "Delete kops cluster"
+      tags: "delete"
       kops_cluster:
         name: "{{ cluster_name }}"
         state: absent
 
     - name: "Create kops cluster"
+      tags: "started"
       kops_cluster:
         name: "{{ cluster_name }}"
         cloud: "aws" # default
         zones:  "{{ cluster_zones }}"
         master_count: 1
         node_count: 1
-        state: present
-
-    - name: "Start kops cluster"
-      tags: started
-      kops_cluster:
-        name: "{{ cluster_name }}"
-        cloudonly: yes
         state: started
 
+    - name: "Start kops cluster"
+      tags: "present"
+      kops_cluster:
+        name: "{{ cluster_name }}"
+        state: present
+
     - name: "Delete kops cluster"
+      tags: "delete"
       kops_cluster:
         name: "{{ cluster_name }}"
         state: absent
