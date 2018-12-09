@@ -128,10 +128,35 @@ class KopsCluster(Kops):
     def apply_present(self, cluster_name, cluster_exist, defined_clusters):
         """Create cluster if does not exist"""
         if cluster_exist:
+            if self.module.params['state'] == 'started':
+
+                cmd = ["update", "cluster", cluster_name, "--yes"]
+                (result, update_output, update_operations) = self.run_command(cmd)
+                if result > 0:
+                    self.module.fail_json(msg=err)
+
+                cmd = ["rolling-update", "cluster", cluster_name, "--yes"]
+                (result, out, err) = self.run_command(cmd)
+                if result > 0:
+                    self.module.fail_json(msg=err)
+                changed = "No rolling-update required." not in out
+
+                if changed:
+                    cmd = ["rolling-update", "cluster", cluster_name, "--yes"]
+                    if self.module.params['cloud_only']:
+                        cmd += ["--cloud-only"]
+
+                    (result, out, err) = self.run_command(cmd)
+                    if result > 0:
+                        self.module.fail_json(msg=err)
+
             return dict(
-                changed=False,
+                changed=changed,
                 cluster_name=cluster_name,
-                defined_clusters=defined_clusters
+                update_operations=update_operations,
+                update_output=update_output,
+                rolling_update_output=out,
+                rolling_update_operations=err,
             )
         return self.create_cluster(cluster_name)
 
