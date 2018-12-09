@@ -57,24 +57,37 @@ class Kops():
         if self.module.params['state_store'] is not None:
             self.kops_args += ['--state', self.module.params['state_store']]
 
+
+    def _get_optional_args(self):
+        optional_args = []
         # Construct command to launch using options definition
         for k, v in iteritems(self.options_definition):
             if self.module.params[k] is None: continue
             if v['type'] == 'bool':
-                self.kops_args += ['--' + v['alias']]
+                optional_args += ['--' + v['alias']]
             else:
-                self.kops_args += ['--' + v['alias'], self.module.params[k]]
+                optional_args += ['--' + v['alias'], str(self.module.params[k])]
 
-    def run_command(self, options):
+        return optional_args
+
+
+    def run_command(self, options, add_optional_args=False):
         """Run kops using kops arguments"""
+        optional_args = []
+        if add_optional_args:
+            optional_args += self._get_optional_args()
         try:
-            return self.module.run_command([self.kops_cmd] + self.kops_args + options)
-        except:
+            cmd = [self.kops_cmd] + self.kops_args + options + optional_args
+            return self.module.run_command(cmd)
+        except Exception as e:
             self.module.fail_json(
+                exception=e,
                 msg="error while launching kops",
                 kops_cmd=self.kops_cmd,
                 kops_args=self.kops_args,
                 kops_options=options,
+                optional_args=optional_args,
+                cmd=cmd
             )
 
 

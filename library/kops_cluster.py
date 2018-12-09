@@ -110,8 +110,8 @@ class KopsCluster(Kops):
 
     def create_cluster(self, cluster_name):
         """Create cluster using kops"""
-        cmd = ["create", "cluster", "--name", cluster_name]
-        (result, out, err) = self.run_command(cmd)
+        cmd = ["create", "cluster", "--name", cluster_name, "--yes"]
+        (result, out, err) = self.run_command(cmd, add_optional_args=True)
         if result > 0:
             self.module.fail_json(msg=err)
         return dict(
