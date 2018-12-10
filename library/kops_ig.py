@@ -5,7 +5,7 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 # pylint: disable=invalid-name,dangerous-default-value,duplicate-code
 
-"""Handle kops cluster creation/deletion"""
+"""Retrieve information about defined kops cluster"""
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -19,10 +19,10 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 ---
-module: kops_cluster
-short_description: Handle cluster creation with kops
+module: kops_ig
+short_description: Retrieve k8s cluster defined with kops
 description:
-     - Let you create or delete cluster using kops
+     - Retrieve various informations of existing cluster defined using kops
 version_added: "2.8"
 options:
   name:
@@ -42,6 +42,11 @@ options:
      type: string
      required: false
      default: None
+  ig_name:
+     description:
+       - Instance group name.
+     type: string
+     required: true
   state:
      description:
        - If C(present), cluster will be created
@@ -51,7 +56,7 @@ options:
      required: false
      default: present
      choices: [ present, started, absent ]
-{%- for option in cluster_options + rolling_update_options %}
+{%- for option in ig_options %}
   {{ option.name }}:
      description:
        - {{ option.help|replace('--', '') }}
@@ -59,6 +64,7 @@ options:
      required: false
      default: {{ option.default }}
 {%- endfor %}
+
 notes:
    - kops bin is required
 author:
@@ -66,121 +72,119 @@ author:
 '''
 
 EXAMPLES = '''
-- name: Create kube cluster with kops
-  kops_cluster:
-    name: test
-    state: present
+- name: Retrieve kops cluster informations
+  kops_ig:
 '''
 
 RETURN = '''
 ---
 '''
 
-class KopsCluster(Kops):
-    """Handle state for kops cluster"""
+class KopsInstanceGroup(Kops):
+    """Handle instance group creation"""
 
     def __init__(self):
         """Init module parameters"""
         additional_module_args = dict(
+            ig_name=dict(type=str, required=True, aliases=['ig-name']),
             state = dict(choices=['present', 'absent', 'started'], default='present'),
-            cloud = dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
-{%- for option in cluster_options + rolling_update_options %}
+{%- for option in ig_options %}
 {%    if option.name not in ['cloud'] -%}
 {{''}}            {{ option.name }} = dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
 {%-    endif %}
 {%- endfor %}
         )
         options_definition = {
-{%- for option in cluster_options + rolling_update_options %}
+{%- for option in ig_options %}
             '{{ option.name }}': {{ option }},
 {%- endfor %}
         }
-        super(KopsCluster, self).__init__(additional_module_args, options_definition)
+        super(KopsInstanceGroup, self).__init__(additional_module_args, options_definition)
 
-    def delete_cluster(self, cluster_name):
-        """Delete cluster"""
-        (result, out, err) = self.run_command(["delete", "cluster", "--yes", "--name", cluster_name])
+
+    def create_ig(self, cluster_name, ig_name):
+        """Create instance group"""
+        cmd = ["create", "instancegroup", "--edit=false", "--name", cluster_name, ig_name]
+
+        (result, out, err) = self.run_command(cmd, add_optional_args_from_tag="create-ig")
+        if result > 0:
+            self.module.fail_json(msg=err, cmd=cmd)
+
+        if self.module.params['state'] == 'started':
+            return self._apply_modifications(cluster_name)
+
+        return dict(
+            changed=True,
+            cluster_name=cluster_name,
+            ig_name=ig_name,
+            kops_output=out
+        )
+
+
+    def delete_ig(self, cluster_name, ig_name):
+        """Delete instance group"""
+        (result, out, err) = self.run_command(["delete", "instancegroup", "--yes", "--name", cluster_name, ig_name])
         if result > 0:
             self.module.fail_json(msg=err)
         return dict(
             changed=True,
             kops_output=out,
             cluster_name=cluster_name,
-        )
-
-    def create_cluster(self, cluster_name):
-        """Create cluster using kops"""
-        cmd = ["create", "cluster", "--name", cluster_name]
-
-        if self.module.params['state'] == 'started':
-            cmd.append("--yes")
-
-        (result, out, err) = self.run_command(cmd, add_optional_args_from_tag="create")
-        if result > 0:
-            self.module.fail_json(msg=err)
-        return dict(
-            changed=True,
-            cluster_name=cluster_name,
-            kops_output=out
+            ig_name=ig_name
         )
 
 
-    def apply_present(self, cluster_name, cluster_exist, defined_clusters):
-        """Create cluster if does not exist"""
-        if cluster_exist:
+    def apply_present(self, cluster_name, ig_name, ig_exist, nodes_definition):
+        if ig_exist:
             if self.module.params['state'] == 'started':
                 return self._apply_modifications(cluster_name)
 
             return dict(
                 changed=False,
                 cluster_name=cluster_name,
-                defined_clusters=defined_clusters
+                ig_name=ig_name,
+                nodes_definition=nodes_definition
             )
-        return self.create_cluster(cluster_name)
+        return self.create_ig(cluster_name, ig_name)
 
-
-    def apply_absent(self, cluster_name, cluster_exist):
-        """Delete cluster if cluster exist"""
-        if not cluster_exist:
+    def apply_absent(self, cluster_name, ig_name, ig_exist):
+        """Delete nodes if instance group exist"""
+        if not ig_exist:
             return dict(
                 changed=False,
                 cluster_name=cluster_name,
+                ig_name=ig_name,
             )
-        return self.delete_cluster(cluster_name)
+        return self.delete_ig(cluster_name, ig_name)
 
 
-    def check_cluster_state(self):
-        """Check cluster state and apply expected state"""
+    def check_ig_state(self, ig_name):
+        """Check instance group state"""
         cluster_name = self.module.params['name']
         state = self.module.params['state']
-        defined_clusters = self.get_clusters(
-            name=cluster_name,
-            retrieve_ig=False,
-            failed_when_not_found=False
-        )
-        cluster_exist = defined_clusters.get(cluster_name) is not None
+        nodes_definition = self.get_nodes(cluster_name=cluster_name)
+        ig_exist = ig_name in nodes_definition
 
         if state in ['present', 'started']:
-            return self.apply_present(cluster_name, cluster_exist, defined_clusters)
+            return self.apply_present(cluster_name, ig_name, ig_exist, nodes_definition)
 
         if state == 'absent':
-            return self.apply_absent(cluster_name, cluster_exist)
+            return self.apply_absent(cluster_name, ig_name, ig_exist)
 
-        self.module.fail_json(msg="Operation not supported", defined_clusters=defined_clusters)
+        self.module.fail_json(msg="Operation not supported", cluster_name=cluster_name, ig_name=ig_name)
         return None
-
 
     def exit_json(self):
         """Send back result to Ansible"""
-        results = self.check_cluster_state()
+        results = self.check_ig_state(self.module.params['ig_name'])
 
         self.module.exit_json(**results)
 
 
 def main():
-    """Kops cluster handling"""
-    cluster = KopsCluster()
-    cluster.exit_json()
+    """Start facts gathering"""
+    facts = KopsInstanceGroup()
+    facts.exit_json()
 
 
 if __name__ == '__main__':

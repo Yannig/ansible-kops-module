@@ -92,6 +92,53 @@ class Kops():
                 cmd=cmd
             )
 
+    def _update_cluster(self, cluster_name):
+        """Update cluster definition"""
+        cmd = ["update", "cluster", cluster_name, "--yes"]
+        (result, update_output, update_operations) = self.run_command(cmd)
+        if result > 0:
+            self.module.fail_json(msg=err)
+        return (update_output, update_operations)
+
+
+    def _is_cluster_need_rolling_update(self, cluster_name):
+        """Check if cluster need rolling update"""
+        cmd = ["rolling-update", "cluster", cluster_name, "--cloudonly"]
+        (result, out, err) = self.run_command(cmd)
+        if result > 0:
+            self.module.fail_json(msg=err)
+        return "No rolling-update required." not in out
+
+
+    def _rolling_update(self, cluster_name):
+        """Apply cluster modifications"""
+        cmd = ["rolling-update", "cluster", cluster_name, "--yes"]
+        if self.module.params['cloudonly']:
+            cmd += ["--cloudonly"]
+
+        (result, out, err) = self.run_command(cmd)
+        if result > 0:
+            self.module.fail_json(msg=err)
+        return (out, err)
+
+
+    def _apply_modifications(self, cluster_name):
+        # Update definition then check if rolling update is needed
+        (update_output, update_operations) = self._update_cluster(cluster_name)
+        changed = self._is_cluster_need_rolling_update(cluster_name)
+        results = {
+            'changed': changed,
+            'cluster_name': cluster_name,
+            'update_operations': update_operations,
+            'update_output': update_output,
+        }
+        if changed:
+            (out, err) = self._rolling_update(cluster_name)
+            results['rolling_update_output'] = out
+            results['rolling_update_operations'] = err
+
+        return results
+
 
     def get_nodes(self, cluster_name):
         """Retrieve instance groups (nodes, master)"""

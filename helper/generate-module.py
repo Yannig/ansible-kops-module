@@ -13,7 +13,7 @@ modules_output = os.path.join(path, '../generated-modules')
 
 env = Environment(loader = FileSystemLoader(modules_path))
 
-option_to_ignore = ["yes", "help", "interactive"]
+option_to_ignore = ["yes", "help", "interactive", "output", "edit"]
 
 def get_ansible_type(option_type):
     if option_type is None: return 'bool'
@@ -69,8 +69,9 @@ def load_help(cmd, tag):
 
 cluster_options = load_help("kops create cluster --help", "create")
 rolling_update_options = load_help("kops rolling-update cluster --help", "rolling-update")
+ig_options = load_help("kops create ig --help", "create-ig")
 
-for module in ['kops_cluster.py', 'kops_facts.py']:
+for module in ['kops_cluster.py', 'kops_facts.py', 'kops_ig.py']:
     module_template = env.get_template(module)
 
     with open(modules_output + '/' + module, 'w') as f:
@@ -78,6 +79,7 @@ for module in ['kops_cluster.py', 'kops_facts.py']:
             dict(
                 cluster_options=cluster_options,
                 rolling_update_options=rolling_update_options,
+                ig_options=ig_options
             )
         )
         f.write(rendered_module)

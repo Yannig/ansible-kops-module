@@ -1,0 +1,50 @@
+---
+
+- name: "Tests kops cluster"
+  hosts: localhost
+  connection: local
+  vars:
+    cluster_name: "test.fqdn"
+    cluster_zones: "us-east-1a"
+  environment:
+    KUBECONFIG: "{{ playbook_dir}}/kubeconfig"
+  gather_facts: no
+  tasks:
+
+    - name: "Create kops instance group test"
+      kops_ig:
+        name: "{{ cluster_name }}"
+        ig_name: "test"
+        state: present
+
+    - name: "Create kops instance group test"
+      kops_ig:
+        name: "{{ cluster_name }}"
+        ig_name: "test"
+        state: started
+
+    - name: "Retrieve kops informations"
+      kops_facts:
+        name: "{{ cluster_name }}"
+
+    - debug: var=kops_clusters_definitions[cluster_name]
+
+    - assert:
+        that:
+          - "kops_clusters_definitions[cluster_name].instancegroups['test'] is defined"
+
+    - name: "Delete kops instance group test"
+      kops_ig:
+        name: "{{ cluster_name }}"
+        ig_name: "test"
+        state: absent
+
+    - name: "Retrieve kops informations"
+      kops_facts:
+        name: "{{ cluster_name }}"
+
+    - debug: var=kops_clusters_definitions[cluster_name]
+
+    - assert:
+        that:
+          - "kops_clusters_definitions[cluster_name].instancegroups['test'] is not defined"
