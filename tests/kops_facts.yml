@@ -8,6 +8,10 @@
     - name: "Retrieve kops cluster facts"
       kops_facts: {}
 
+    - name: "Retrieve kops cluster facts (full)"
+      kops_facts:
+        full: yes
+
     - debug: var=kops_clusters
     - debug: var=kops_clusters_definitions
     - debug: var=kops_path

@@ -45,9 +45,15 @@ options:
   failed_when_not_found:
      description:
        - Module will crash if cluster doesn't exist. No crash by default.
-     type: string
+     type: bool
      required: false
-     default: False
+     default: false
+  full:
+     description:
+       - Show fully populated configuration from kops.
+     type: bool
+     required: false
+     default: false
 
 notes:
    - kops bin is required
@@ -69,14 +75,19 @@ class KopsFacts(Kops):
 
     def __init__(self):
         """Init module parameters"""
-        addition_module_args = dict(
+        additional_module_args = dict(
             failed_when_not_found=dict(type=bool, default=False),
+            full=dict(type=bool, default=False),
         )
-        super(KopsFacts, self).__init__(addition_module_args=addition_module_args)
+        super(KopsFacts, self).__init__(additional_module_args=additional_module_args)
 
     def get_facts(self):
         """Retrieve clusters definition"""
-        clusters_definitions = self.get_clusters(self.module.params['name'], failed_when_not_found=self.module.params['failed_when_not_found'])
+        clusters_definitions = self.get_clusters(
+            self.module.params['name'],
+            failed_when_not_found=self.module.params['failed_when_not_found'],
+            full=self.module.params['full']
+        )
 
         return dict(
             kops_path=self.kops_cmd,
