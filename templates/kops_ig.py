@@ -56,24 +56,14 @@ options:
      required: false
      default: present
      choices: [ present, started, absent ]
-  dry_run:
+{%- for option in ig_options %}
+  {{ option.name }}:
      description:
-       - If true, only print the object that would be sent, without sending it. This flag can be used to create a cluster YAML or JSON manifest.
-     type: bool
+       - {{ option.help|replace('--', '') }}
+     type: {{ option.type|replace('str', 'string') }}
      required: false
-     default: None
-  role:
-     description:
-       - Type of instance group to create (Node,Master,Bastion)
-     type: string
-     required: false
-     default: 'Node'
-  subnet:
-     description:
-       - Subnet in which to create instance group. One of Availability Zone like eu-west-1a or a comma-separated list of multiple Availability Zones.
-     type: list
-     required: false
-     default: None
+     default: {{ option.default }}
+{%- endfor %}
 
 notes:
    - kops bin is required
@@ -98,14 +88,16 @@ class KopsInstanceGroup(Kops):
         additional_module_args = dict(
             ig_name=dict(type=str, required=True, aliases=['ig-name']),
             state = dict(choices=['present', 'absent', 'started'], default='present'),
-            dry_run = dict(type=bool, aliases=['dry-run']),
-            role = dict(type=str),
-            subnet = dict(type=str),
+{%- for option in ig_options %}
+{%    if option.name not in ['cloud'] -%}
+{{''}}            {{ option.name }} = dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
+{%-    endif %}
+{%- endfor %}
         )
         options_definition = {
-            'dry_run': {'name': 'dry_run', 'alias': 'dry-run', 'type': 'bool', 'help': 'If true, only print the object that would be sent, without sending it. This flag can be used to create a cluster YAML or JSON manifest.', 'default': None, 'tag': 'create-ig'},
-            'role': {'name': 'role', 'alias': 'role', 'type': 'str', 'help': 'Type of instance group to create (Node,Master,Bastion)', 'default': "'Node'", 'tag': 'create-ig'},
-            'subnet': {'name': 'subnet', 'alias': 'subnet', 'type': 'list', 'help': 'Subnet in which to create instance group. One of Availability Zone like eu-west-1a or a comma-separated list of multiple Availability Zones.', 'default': None, 'tag': 'create-ig'},
+{%- for option in ig_options %}
+            '{{ option.name }}': {{ option }},
+{%- endfor %}
         }
         super(KopsInstanceGroup, self).__init__(additional_module_args, options_definition)
 

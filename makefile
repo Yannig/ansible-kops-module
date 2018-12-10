@@ -1,12 +1,9 @@
 CLUSTER_NAME            = test
 ANSIBLE_OPTIONS        ?=
-ANSIBLE_COMMON_OPTIONS ?=-M generated-modules -i localhost,
+ANSIBLE_COMMON_OPTIONS ?=-M library -i localhost,
 ANSIBLE_CMD             = ansible-playbook $(ANSIBLE_COMMON_OPTIONS) $(ANSIBLE_OPTIONS)
 
-generated-modules:
-	mkdir -p generated-modules
-
-render-modules: generated-modules
+render-modules:
 	./helper/generate-module.py
 
 kops_facts: render-modules

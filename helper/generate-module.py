@@ -8,8 +8,8 @@ import os,re
 from jinja2 import Environment, FileSystemLoader
 
 path = os.path.dirname(os.path.abspath(__file__))
-modules_path = os.path.join(path, '../library')
-modules_output = os.path.join(path, '../generated-modules')
+modules_path = os.path.join(path, '../templates')
+modules_output = os.path.join(path, '../library')
 
 env = Environment(loader = FileSystemLoader(modules_path))
 
@@ -59,7 +59,7 @@ def load_help(cmd, tag):
                     name = option,
                     alias = alias,
                     type = option_type,
-                    help = option_help,
+                    help = option_help.strip(),
                     default = option_default,
                     tag = tag
                 )
