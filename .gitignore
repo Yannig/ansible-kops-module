@@ -1,1 +1,3 @@
 *.retry
+generated-modules
+tests/kubeconfig
