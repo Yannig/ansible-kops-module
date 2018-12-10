@@ -23,7 +23,7 @@ def get_ansible_type(option_type):
     return 'str'
 
 
-def load_help(cmd):
+def load_help(cmd, tag):
     output = os.popen(cmd).read().split("\n")
     while len(output) > 0:
         current_line = output.pop(0)
@@ -61,15 +61,16 @@ def load_help(cmd):
                     type = option_type,
                     help = option_help,
                     default = option_default,
+                    tag = tag
                 )
             )
 
     return kops_options
 
-cluster_options = load_help("kops create cluster --help")
-rolling_update_options = load_help("kops rolling-update cluster --help")
+cluster_options = load_help("kops create cluster --help", "create")
+rolling_update_options = load_help("kops rolling-update cluster --help", "rolling-update")
 
-for module in ['kops_cluster.py']:
+for module in ['kops_cluster.py', 'kops_facts.py']:
     module_template = env.get_template(module)
 
     with open(modules_output + '/' + module, 'w') as f:

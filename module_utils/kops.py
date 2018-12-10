@@ -12,7 +12,7 @@ __metaclass__ = type
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.six import iteritems
-import yaml
+import yaml,re
 
 class Kops():
     """handle kops communication by detecting kops bin path and setting kops options"""
@@ -29,15 +29,15 @@ class Kops():
     optional_module_args = None
     options_definition = {}
 
-    def __init__(self, addition_module_args=None, options_definition=None):
+    def __init__(self, additional_module_args=None, options_definition=None):
         """Init Ansible module options"""
-        if addition_module_args is not None:
-            self.addition_module_args = addition_module_args
+        if additional_module_args is not None:
+            self.additional_module_args = additional_module_args
 
         self.module = AnsibleModule(
             argument_spec=dict(
                 self.default_module_args,
-                **addition_module_args
+                **additional_module_args
             )
         )
         if options_definition is not None:
@@ -58,24 +58,26 @@ class Kops():
             self.kops_args += ['--state', self.module.params['state_store']]
 
 
-    def _get_optional_args(self):
+    def _get_optional_args(self, tag=None):
+        if tag is None: return []
         optional_args = []
         # Construct command to launch using options definition
         for k, v in iteritems(self.options_definition):
+            if v.get('tag') != tag: continue
             if self.module.params[k] is None: continue
             if v['type'] == 'bool':
-                optional_args += ['--' + v['alias']]
+                if bool(self.module.params[k]):
+                    optional_args += ['--' + v['alias']]
             else:
                 optional_args += ['--' + v['alias'], str(self.module.params[k])]
 
         return optional_args
 
 
-    def run_command(self, options, add_optional_args=False):
+    def run_command(self, options, add_optional_args_from_tag=None):
         """Run kops using kops arguments"""
-        optional_args = []
-        if add_optional_args:
-            optional_args += self._get_optional_args()
+        optional_args = self._get_optional_args(tag=add_optional_args_from_tag)
+
         try:
             cmd = [self.kops_cmd] + self.kops_args + options + optional_args
             return self.module.run_command(cmd)
@@ -108,17 +110,23 @@ class Kops():
         return nodes_definitions
 
 
-    def get_clusters(self, name=None, retrieve_ig=True, failed_when_not_found=True):
+    def get_clusters(self, name=None, retrieve_ig=True, failed_when_not_found=True, full=False):
         """Retrieve defined clusters"""
         cmd = ["get", "clusters"]
         if name is not None:
             cmd += ["--name", name]
+        if full:
+            cmd += ["--full"]
 
         (result, out, err) = self.run_command(cmd + ["-o=yaml"])
         if result > 0:
             if not failed_when_not_found and name is not None:
                 return {}
             self.module.fail_json(msg=err.strip())
+
+        if full:
+            # Clean up returned strings
+            out = re.sub(r'^\s*//.*', '', out, flags=re.M)
 
         clusters_definitions = {}
         for cluster in out.split("---\n"):

@@ -81,7 +81,7 @@ class KopsCluster(Kops):
 
     def __init__(self):
         """Init module parameters"""
-        addition_module_args = dict(
+        additional_module_args = dict(
             state = dict(choices=['present', 'absent', 'started'], default='present'),
             cloud = dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
 {%- for option in cluster_options + rolling_update_options %}
@@ -91,11 +91,11 @@ class KopsCluster(Kops):
 {%- endfor %}
         )
         options_definition = {
-{%- for option in cluster_options %}
+{%- for option in cluster_options + rolling_update_options %}
             '{{ option.name }}': {{ option }},
 {%- endfor %}
         }
-        super(KopsCluster, self).__init__(addition_module_args, options_definition)
+        super(KopsCluster, self).__init__(additional_module_args, options_definition)
 
     def delete_cluster(self, cluster_name):
         """Delete cluster"""
@@ -115,7 +115,7 @@ class KopsCluster(Kops):
         if self.module.params['state'] == 'started':
             cmd.append("--yes")
 
-        (result, out, err) = self.run_command(cmd, add_optional_args=True)
+        (result, out, err) = self.run_command(cmd, add_optional_args_from_tag="create")
         if result > 0:
             self.module.fail_json(msg=err)
         return dict(
