@@ -10,7 +10,7 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-from ansible.module_utils.kops import Kops
+from ansible.module_utils.kops import Kops, to_camel_case
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
@@ -474,6 +474,7 @@ class KopsCluster(Kops):
         }
         super(KopsCluster, self).__init__(additional_module_args, options_definition)
 
+
     def delete_cluster(self, cluster_name):
         """Delete cluster"""
         (result, out, err) = self.run_command(
@@ -486,6 +487,7 @@ class KopsCluster(Kops):
             kops_output=out,
             cluster_name=cluster_name,
         )
+
 
     def create_cluster(self, cluster_name):
         """Create cluster using kops"""
@@ -502,6 +504,19 @@ class KopsCluster(Kops):
             cluster_name=cluster_name,
             kops_output=out
         )
+
+
+    def update_cluster(self, cluster_name):
+        """Update cluster"""
+        cluster_definition = self.get_cluster(cluster_name)
+        spec_to_merge = {}
+        for param in ['kubernetes_version']:
+            value = self.module.params[param]
+            current_value = cluster_definition['spec'][to_camel_case(param)]
+            if value is not None and value != current_value:
+                spec_to_merge[to_camel_case(param)] = value
+
+        return self.update_object_definition(cluster_name, cluster_definition, spec_to_merge)
 
 
     def apply_present(self, cluster_name, cluster_exist, defined_clusters):
