@@ -14,6 +14,18 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.six import iteritems
 import yaml,re
 
+
+def to_camel_case(snake_str):
+    """
+        Convert snake case variable to camel case
+        snake_case => snakeCase
+        camel_case => camelCase
+        min_node   => minNode
+    """
+    components = snake_str.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
+
+
 class Kops():
     """handle kops communication by detecting kops bin path and setting kops options"""
 
@@ -74,13 +86,13 @@ class Kops():
         return optional_args
 
 
-    def run_command(self, options, add_optional_args_from_tag=None):
+    def run_command(self, options, add_optional_args_from_tag=None, data=None):
         """Run kops using kops arguments"""
         optional_args = self._get_optional_args(tag=add_optional_args_from_tag)
 
         try:
             cmd = [self.kops_cmd] + self.kops_args + options + optional_args
-            return self.module.run_command(cmd)
+            return self.module.run_command(cmd, data=data)
         except Exception as e:
             self.module.fail_json(
                 exception=e,
@@ -140,9 +152,11 @@ class Kops():
         return results
 
 
-    def get_nodes(self, cluster_name):
+    def get_nodes(self, cluster_name, ig_name=None):
         """Retrieve instance groups (nodes, master)"""
         cmd = ["get", "instancegroups", "--name", cluster_name]
+        if ig_name is not None:
+            cmd += [ ig_name ]
 
         (result, out, err) = self.run_command(cmd + ["-o=yaml"])
         if result > 0:
@@ -154,6 +168,8 @@ class Kops():
             name = definition['metadata']['name']
             nodes_definitions[name] = definition
 
+        if ig_name is not None:
+            return nodes_definitions[ig_name]
         return nodes_definitions
 
 

@@ -12,6 +12,7 @@
   tasks:
 
     - name: "Create kops instance group test"
+      tags: "present"
       kops_ig:
         name: "{{ cluster_name }}"
         ig_name: "test"
@@ -22,6 +23,14 @@
         name: "{{ cluster_name }}"
         ig_name: "test"
         state: started
+
+    - name: "Update kops instance group test"
+      tags: "update"
+      kops_ig:
+        name: "{{ cluster_name }}"
+        ig_name: "test"
+        min_size: 1
+        max_size: 2
 
     - name: "Retrieve kops informations"
       kops_facts:
