@@ -83,17 +83,22 @@ class KopsFacts(Kops):
 
     def get_facts(self):
         """Retrieve clusters definition"""
+        cluster_name = self.module.params['name']
         clusters_definitions = self.get_clusters(
-            self.module.params['name'],
+            cluster_name,
             failed_when_not_found=self.module.params['failed_when_not_found'],
             full=self.module.params['full']
         )
 
-        return dict(
-            kops_path=self.kops_cmd,
-            kops_clusters=clusters_definitions.keys(),
-            kops_clusters_definitions=clusters_definitions,
-        )
+        ansible_facts = {
+            'kops_path': self.kops_cmd,
+            'kops_clusters_definitions': clusters_definitions,
+        }
+
+        if cluster_name is not None:
+            ansible_facts['kops_clusters'] = clusters_definitions.keys()
+
+        return ansible_facts
 
 
     def exit_json(self):

@@ -1,0 +1,30 @@
+---
+
+- name: "Tests kops cluster"
+  hosts: localhost
+  connection: local
+  vars:
+    cluster_name: "test.fqdn"
+    cluster_zones: "us-east-1a"
+  environment:
+    KUBECONFIG: "{{ playbook_dir}}/kubeconfig"
+  gather_facts: no
+  tasks:
+
+    - name: "Create kops cluster version 1.10.11"
+      tags: [ "present", "1.10.11" ]
+      kops_cluster:
+        name: "{{ cluster_name }}"
+        zones:  "{{ cluster_zones }}"
+        master_count: 1
+        node_count: 1
+        kubernetes_version: 1.10.11
+        state: present
+
+    - name: "Change Kubernetes version"
+      tags: [ "present", "1.12.3" ]
+      kops_cluster:
+        name: "{{ cluster_name }}"
+        zones:  "{{ cluster_zones }}"
+        kubernetes_version: 1.12.3
+        state: present

@@ -12,10 +12,13 @@ kops_facts: render-modules
 kops_cluster: render-modules
 	ANSIBLE_MODULE_UTILS=./module_utils $(ANSIBLE_CMD) tests/kops_cluster.yml -e cluster_name=$(CLUSTER_NAME)
 
+kops_cluster_version: render-modules
+	ANSIBLE_MODULE_UTILS=./module_utils $(ANSIBLE_CMD) tests/kops_cluster_version.yml -e cluster_name=$(CLUSTER_NAME)
+
 kops_ig: render-modules
 	ANSIBLE_MODULE_UTILS=./module_utils $(ANSIBLE_CMD) tests/kops_ig.yml -e cluster_name=$(CLUSTER_NAME)
 
-pylint:
+pylint: render-modules
 	PYTHONPATH=. pylint --disable R0801,E0401,E0611 module_utils/kops.py library/kops_*.py
 
 tests: pylint kops_facts kops_cluster kops_ig

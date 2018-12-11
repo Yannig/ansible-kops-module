@@ -124,7 +124,7 @@ class Kops():
 
         cmd = ["replace", "-f", "-"]
         # Remove timestamp metadata in object definition to avoid parsing issue
-        del(object_definition['metadata']['creationTimestamp'])
+        del new_object_definition['metadata']['creationTimestamp']
         (result, _, err) = self.run_command(cmd, data=yaml.dump(new_object_definition))
         if result > 0:
             self.module.fail_json(
@@ -134,12 +134,12 @@ class Kops():
                 spec_to_update=spec_to_update,
                 new_object_definition=new_object_definition
             )
-        self._update_cluster(cluster_name)
+        self._update_cluster_definition(cluster_name)
 
         return True
 
 
-    def _update_cluster(self, cluster_name):
+    def _update_cluster_definition(self, cluster_name):
         """Update cluster definition"""
         cmd = ["update", "cluster", cluster_name, "--yes"]
         (result, update_output, update_operations) = self.run_command(cmd)
@@ -174,7 +174,7 @@ class Kops():
 
     def _apply_modifications(self, cluster_name):
         # Update definition then check if rolling update is needed
-        (update_output, update_operations) = self._update_cluster(cluster_name)
+        (update_output, update_operations) = self._update_cluster_definition(cluster_name)
         changed = self._is_cluster_need_rolling_update(cluster_name)
         results = {
             'changed': changed,
@@ -211,17 +211,18 @@ class Kops():
         return nodes_definitions
 
 
-    def get_clusters(self, name=None, retrieve_ig=True, failed_when_not_found=True, full=False):
+    def get_clusters(self, cluster_name=None, retrieve_ig=True,
+                     failed_when_not_found=True, full=False):
         """Retrieve defined clusters"""
         cmd = ["get", "clusters"]
-        if name is not None:
-            cmd += ["--name", name]
+        if cluster_name is not None:
+            cmd += ["--name", cluster_name]
         if full:
             cmd += ["--full"]
 
         (result, out, err) = self.run_command(cmd + ["-o=yaml"])
         if result > 0:
-            if not failed_when_not_found and name is not None:
+            if not failed_when_not_found and cluster_name is not None:
                 return {}
             self.module.fail_json(msg=err.strip())
 
@@ -236,4 +237,6 @@ class Kops():
             if retrieve_ig:
                 cluster_definition["instancegroups"] = self.get_nodes(cluster_name)
             clusters_definitions[cluster_name] = cluster_definition
+        if cluster_name is not None:
+            return clusters_definitions[cluster_name]
         return clusters_definitions

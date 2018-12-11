@@ -508,27 +508,34 @@ class KopsCluster(Kops):
 
     def update_cluster(self, cluster_name):
         """Update cluster"""
-        cluster_definition = self.get_cluster(cluster_name)
+        cluster_definition = self.get_clusters(cluster_name)
+
         spec_to_merge = {}
-        for param in ['kubernetes_version']:
+        for param in ['kubernetes_version', 'master_public_name', 'network_cidr']:
             value = self.module.params[param]
-            current_value = cluster_definition['spec'][to_camel_case(param)]
+            if to_camel_case(param) in cluster_definition['spec']:
+                current_value = cluster_definition['spec'][to_camel_case(param)]
+            else:
+                current_value = None
+
             if value is not None and value != current_value:
                 spec_to_merge[to_camel_case(param)] = value
 
         return self.update_object_definition(cluster_name, cluster_definition, spec_to_merge)
 
 
-    def apply_present(self, cluster_name, cluster_exist, defined_clusters):
+    def apply_present(self, cluster_name, defined_cluster):
         """Create cluster if does not exist"""
-        if cluster_exist:
+        if defined_cluster:
+            changed = self.update_cluster(cluster_name)
             if self.module.params['state'] == 'started':
                 return self._apply_modifications(cluster_name)
-
+            if changed:
+                defined_cluster = self.get_clusters(cluster_name)
             return dict(
-                changed=False,
+                changed=changed,
                 cluster_name=cluster_name,
-                defined_clusters=defined_clusters
+                defined_cluster=defined_cluster
             )
         return self.create_cluster(cluster_name)
 
@@ -547,20 +554,19 @@ class KopsCluster(Kops):
         """Check cluster state and apply expected state"""
         cluster_name = self.module.params['name']
         state = self.module.params['state']
-        defined_clusters = self.get_clusters(
-            name=cluster_name,
+        defined_cluster = self.get_clusters(
+            cluster_name=cluster_name,
             retrieve_ig=False,
             failed_when_not_found=False
         )
-        cluster_exist = defined_clusters.get(cluster_name) is not None
 
         if state in ['present', 'started']:
-            return self.apply_present(cluster_name, cluster_exist, defined_clusters)
+            return self.apply_present(cluster_name, defined_cluster)
 
         if state == 'absent':
-            return self.apply_absent(cluster_name, cluster_exist)
+            return self.apply_absent(cluster_name, defined_cluster)
 
-        self.module.fail_json(msg="Operation not supported", defined_clusters=defined_clusters)
+        self.module.fail_json(msg="Operation not supported", defined_cluster=defined_cluster)
         return None
 
 
