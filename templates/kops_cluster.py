@@ -82,14 +82,15 @@ class KopsCluster(Kops):
     def __init__(self):
         """Init module parameters"""
         additional_module_args = dict(
-            state = dict(choices=['present', 'absent', 'started'], default='present'),
-            cloud = dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
+            state=dict(choices=['present', 'absent', 'started'], default='present'),
+            cloud=dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
 {%- for option in cluster_options + rolling_update_options %}
 {%    if option.name not in ['cloud'] -%}
-{{''}}            {{ option.name }} = dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
+{{''}}            {{ option.name }}=dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
 {%-    endif %}
 {%- endfor %}
         )
+        # pylint: disable=line-too-long
         options_definition = {
 {%- for option in cluster_options + rolling_update_options %}
             '{{ option.name }}': {{ option }},
@@ -99,7 +100,9 @@ class KopsCluster(Kops):
 
     def delete_cluster(self, cluster_name):
         """Delete cluster"""
-        (result, out, err) = self.run_command(["delete", "cluster", "--yes", "--name", cluster_name])
+        (result, out, err) = self.run_command(
+            ["delete", "cluster", "--yes", "--name", cluster_name]
+        )
         if result > 0:
             self.module.fail_json(msg=err)
         return dict(
@@ -185,3 +188,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

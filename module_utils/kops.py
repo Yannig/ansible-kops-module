@@ -10,9 +10,12 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
+import re
+
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.six import iteritems
-import yaml,re
+from ansible.utils.vars import merge_hash
+import yaml
 
 
 def to_camel_case(snake_str):
@@ -71,12 +74,18 @@ class Kops():
 
 
     def _get_optional_args(self, tag=None):
-        if tag is None: return []
+        if tag is None:
+            return []
+
         optional_args = []
         # Construct command to launch using options definition
         for k, v in iteritems(self.options_definition):
-            if v.get('tag') != tag: continue
-            if self.module.params[k] is None: continue
+            if v.get('tag') != tag:
+                continue
+
+            if self.module.params[k] is None:
+                continue
+
             if v['type'] == 'bool':
                 if bool(self.module.params[k]):
                     optional_args += ['--' + v['alias']]
@@ -93,6 +102,7 @@ class Kops():
         try:
             cmd = [self.kops_cmd] + self.kops_args + options + optional_args
             return self.module.run_command(cmd, data=data)
+        # pylint: disable=broad-except
         except Exception as e:
             self.module.fail_json(
                 exception=e,
@@ -104,12 +114,40 @@ class Kops():
                 cmd=cmd
             )
 
+
+    def update_object_definition(self, cluster_name, object_definition, spec_to_update):
+        """Update object definition (cluster or instance group)"""
+        if not spec_to_update:
+            return False
+
+        new_object_definition = merge_hash(object_definition, spec_to_update)
+
+        cmd = ["replace", "-f", "-"]
+        # Remove timestamp metadata in object definition to avoid parsing issue
+        del(object_definition['metadata']['creationTimestamp'])
+        (result, _, err) = self.run_command(cmd, data=yaml.dump(new_object_definition))
+        if result > 0:
+            self.module.fail_json(
+                msg="Error while updating object definition",
+                kops_error=err,
+                object_definition=object_definition,
+                spec_to_update=spec_to_update,
+                new_object_definition=new_object_definition
+            )
+        self._update_cluster(cluster_name)
+
+        return True
+
+
     def _update_cluster(self, cluster_name):
         """Update cluster definition"""
         cmd = ["update", "cluster", cluster_name, "--yes"]
         (result, update_output, update_operations) = self.run_command(cmd)
         if result > 0:
-            self.module.fail_json(msg=err)
+            self.module.fail_json(
+                msg="Error while updating cluster definition",
+                error=update_operations
+            )
         return (update_output, update_operations)
 
 
@@ -156,7 +194,7 @@ class Kops():
         """Retrieve instance groups (nodes, master)"""
         cmd = ["get", "instancegroups", "--name", cluster_name]
         if ig_name is not None:
-            cmd += [ ig_name ]
+            cmd += [ig_name]
 
         (result, out, err) = self.run_command(cmd + ["-o=yaml"])
         if result > 0:
