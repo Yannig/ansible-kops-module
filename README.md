@@ -16,13 +16,17 @@ You can use the same variable as with kops/aws to handle communication with kops
 
 Feedbacks are welcome.
 
-Here an example to retrieve facts from cluster **test**:
+### How to configure connection to kops cluster
+
 
 ```shell
 export AWS_ACCESS_KEY_ID=xxx
 export AWS_ACCESS_ACCESS_KEY=xxxxxxxxxxx
 export KOPS_STATE_STORE=s3://my-state-store-in-s3
 ```
+
+### Retrieve facts from kops cluster
+
 
     $ ansible -M ./library -m kops_facts localhost
 
@@ -44,3 +48,23 @@ localhost | SUCCESS => {
                 },
 [...]
 ```
+
+### Handle kops cluster
+
+Here is a example of cluster creation:
+
+    $ ansible -M ./library -m kops_cluster -a "name=test.fqdn cloud=aws zones=eu-west-1a state=started" localhost
+
+Now to delete this cluster, launch the following command:
+
+    $ ansible -M ./library -m kops_cluster -a "name=test.fqdn state=absent" localhost
+
+### Handle kops nodes
+
+Add a new instance group for cluster test.fqdn:
+
+    $ ansible -M ./library -m kops_ig -a "name=test.fqdn ig_name=newnodegroup state=started" localhost
+
+Same thing to delete it:
+
+    $ ansible -M ./library -m kops_ig -a "name=test.fqdn ig_name=newnodegroup state=absent" localhost
