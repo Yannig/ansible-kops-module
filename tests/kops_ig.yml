@@ -31,6 +31,7 @@
         ig_name: "test"
         min_size: 1
         max_size: 2
+        root_volume_size: 10 # 10G
 
     - name: "Retrieve kops informations"
       kops_facts:

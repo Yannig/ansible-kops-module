@@ -120,7 +120,7 @@ class Kops():
         if not spec_to_update:
             return False
 
-        new_object_definition = merge_hash(object_definition, spec_to_update)
+        new_object_definition = merge_hash(object_definition, {'spec': spec_to_update})
 
         cmd = ["replace", "-f", "-"]
         # Remove timestamp metadata in object definition to avoid parsing issue

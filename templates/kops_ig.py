@@ -47,6 +47,7 @@ options:
        - Instance group name.
      type: string
      required: true
+     aliases: igName, ig-name
   image:
      description:
        - Image used to launch kube nodes (eg: kope.io/k8s-1.10-debian-jessie-amd64-hvm-ebs-2018-08-17)
@@ -59,18 +60,28 @@ options:
      type: string
      required: False
      default: None
+     aliases: machineType, machine-type
   min_size:
      description:
        - Min size of instance group (eg: 1). Default is 2.
      type: int
      required: False
      default: None
+     aliases: minSize, min-size
   max_size:
      description:
        - Max size of instance group (eg: 5). Default is 5.
      type: int
      required: False
      default: None
+     aliases: maxSize, max-size
+  root_volume_size:
+     description:
+       - Root FS size (in Go). Default is 100.
+     type: int
+     required: False
+     default: None
+     aliases: rootVolumeSize, root-volume-size, node_size, node-size, nodeSize
   subnets:
      description:
        - Subnets used by instance group (eg: us-east-1a,us-east-1b)
@@ -116,12 +127,15 @@ class KopsInstanceGroup(Kops):
     def __init__(self):
         """Init module parameters"""
         additional_module_args = dict(
-            ig_name=dict(type=str, required=True, aliases=['ig-name']),
+            ig_name=dict(type=str, required=True, aliases=['ig-name', 'igName']),
             state=dict(choices=['present', 'absent', 'started'], default='present'),
             image=dict(type=str, default=None),
             machine_type=dict(type=str, default=None, aliases=['machineType', 'machine-type']),
             max_size=dict(type=int, default=None, aliases=['maxSize', 'max-size']),
             min_size=dict(type=int, default=None, aliases=['minSize', 'min-size']),
+            root_volume_size=dict(type=int, default=None, aliases=[
+                'rootVolumeSize', 'root-volume-size', 'node_size', 'node-size', 'nodeSize'
+            ]),
             subnets=dict(type=list, default=None),
 {%- for option in ig_options %}
 {{''}}            {{ option.name }}=dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
@@ -140,13 +154,20 @@ class KopsInstanceGroup(Kops):
         """Update instance group"""
         ig_definition = self.get_nodes(cluster_name, ig_name)
         spec_to_merge = {}
-        for param in ['image', 'machine_type', 'max_size', 'min_size', 'subnets']:
+        instance_group_parameters = [
+            'image', 'machine_type', 'max_size', 'min_size', 'root_volume_size', 'subnets'
+        ]
+        for param in instance_group_parameters:
             value = self.module.params[param]
-            current_value = ig_definition['spec'][to_camel_case(param)]
+            if to_camel_case(param) in ig_definition['spec']:
+                current_value = ig_definition['spec'][to_camel_case(param)]
+            else:
+                current_value = None
+
             if value is not None and value != current_value:
                 spec_to_merge[to_camel_case(param)] = value
 
-        return self.update_object_definition(cluster_name, ig_definition, {'spec': spec_to_merge})
+        return self.update_object_definition(cluster_name, ig_definition, spec_to_merge)
 
 
     def create_ig(self, cluster_name, ig_name):
