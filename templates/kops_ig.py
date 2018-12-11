@@ -91,12 +91,12 @@ options:
   state:
      description:
        - If C(present), cluster will be created
-       - If C(started), cluster will be created and check that the cluster is started
+       - If C(updated), cluster will be created and check that the cluster is updated
        - If C(absent), cluster will be deleted
      type: string
      required: false
      default: present
-     choices: [ present, started, absent ]
+     choices: [ present, updated, absent ]
 {%- for option in ig_options %}
   {{ option.name }}:
      description:
@@ -128,7 +128,7 @@ class KopsInstanceGroup(Kops):
         """Init module parameters"""
         additional_module_args = dict(
             ig_name=dict(type=str, required=True, aliases=['ig-name', 'igName']),
-            state=dict(choices=['present', 'absent', 'started'], default='present'),
+            state=dict(choices=['present', 'absent', 'updated'], default='present'),
             image=dict(type=str, default=None),
             machine_type=dict(type=str, default=None, aliases=['machineType', 'machine-type']),
             max_size=dict(type=int, default=None, aliases=['maxSize', 'max-size']),
@@ -180,7 +180,7 @@ class KopsInstanceGroup(Kops):
 
         self.update_ig(cluster_name, ig_name)
 
-        if self.module.params['state'] == 'started':
+        if self.module.params['state'] == 'updated':
             return self._apply_modifications(cluster_name)
 
         return dict(
@@ -213,7 +213,7 @@ class KopsInstanceGroup(Kops):
             if changed:
                 nodes_definition = self.get_nodes(cluster_name)
 
-            if self.module.params['state'] == 'started':
+            if self.module.params['state'] == 'updated':
                 return self._apply_modifications(cluster_name)
 
             return dict(
@@ -243,7 +243,7 @@ class KopsInstanceGroup(Kops):
         nodes_definition = self.get_nodes(cluster_name=cluster_name)
         ig_exist = ig_name in nodes_definition
 
-        if state in ['present', 'started']:
+        if state in ['present', 'updated']:
             return self.apply_present(cluster_name, ig_name, ig_exist, nodes_definition)
 
         if state == 'absent':

@@ -21,6 +21,17 @@
         kubernetes_version: 1.10.11
         state: present
 
+    - name: "Retrieve kops cluster facts (full)"
+      kops_facts:
+        name: "{{ cluster_name }}"
+
+    - debug: var=kops_clusters_definitions
+
+    - assert:
+        that:
+          - "kops_clusters_definitions.spec.kubernetesVersion == '1.10.11'"
+      tags: [ "present", "1.10.11" ]
+
     - name: "Change Kubernetes version"
       tags: [ "present", "1.12.3" ]
       kops_cluster:
@@ -28,3 +39,15 @@
         zones:  "{{ cluster_zones }}"
         kubernetes_version: 1.12.3
         state: present
+
+    - name: "Retrieve kops cluster facts (1.12.3)"
+      tags: [ "present", "1.12.3" ]
+      kops_facts:
+        name: "{{ cluster_name }}"
+
+    - debug: var=kops_clusters_definitions
+
+    - assert:
+        that:
+          - "kops_clusters_definitions.spec.kubernetesVersion == '1.12.3'"
+      tags: [ "present", "1.12.3" ]

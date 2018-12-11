@@ -59,7 +59,7 @@ localhost | SUCCESS => {
 
 Here is a example of cluster creation:
 
-    $ ansible -M ./library -m kops_cluster -a "name=test.fqdn cloud=aws zones=eu-west-1a state=started" localhost
+    $ ansible -M ./library -m kops_cluster -a "name=test.fqdn cloud=aws zones=eu-west-1a state=updated" localhost
 
 Now to delete this cluster, launch the following command:
 
@@ -69,7 +69,7 @@ Now to delete this cluster, launch the following command:
 
 Add a new instance group for cluster test.fqdn:
 
-    $ ansible -M ./library -m kops_ig -a "name=test.fqdn ig_name=newnodegroup state=started" localhost
+    $ ansible -M ./library -m kops_ig -a "name=test.fqdn ig_name=newnodegroup state=updated" localhost
 
 Same thing to delete it:
 

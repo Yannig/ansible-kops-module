@@ -365,6 +365,16 @@ RETURN = '''
 class KopsCluster(Kops):
     """Handle state for kops cluster"""
 
+    SPECIAL_CASE = {
+        "admin_access": {
+            "field": "kubernetesApiAccess",
+            "transform": "list"
+        },
+        "ssh_access": {
+            "transform": "list"
+        }
+    }
+
     def __init__(self):
         """Init module parameters"""
         additional_module_args = dict(
@@ -506,20 +516,43 @@ class KopsCluster(Kops):
         )
 
 
+    def get_spec_name(self, param):
+        """
+          Send back variable name as expected in spec field from param name
+          Handle corner case like Cidr/CIDR or special case
+        """
+        if param in self.SPECIAL_CASE and self.SPECIAL_CASE[param].get('field'):
+            return self.SPECIAL_CASE[param]['field']
+
+        return to_camel_case(param).replace('Cidr', 'CIDR')
+
+    def convert_value(self, param, value):
+        """Do some transformation from string to list using SPECIAL_CASE values"""
+        if param in self.SPECIAL_CASE:
+            if self.SPECIAL_CASE[param]['transform'] == 'list':
+                return [x.strip() for x in value.split(",")]
+        # If not a special case, send unchanged value
+        return value
+
     def update_cluster(self, cluster_name):
         """Update cluster"""
         cluster_definition = self.get_clusters(cluster_name)
 
         spec_to_merge = {}
-        for param in ['kubernetes_version', 'master_public_name', 'network_cidr']:
+        cluster_parameters = [
+            'kubernetes_version', 'master_public_name', 'network_cidr',
+            'admin_access', 'ssh_access'
+        ]
+        for param in cluster_parameters:
+            spec_name = self.get_spec_name(param)
             value = self.module.params[param]
-            if to_camel_case(param) in cluster_definition['spec']:
-                current_value = cluster_definition['spec'][to_camel_case(param)]
+            if spec_name in cluster_definition['spec']:
+                current_value = cluster_definition['spec'][spec_name]
             else:
                 current_value = None
 
             if value is not None and value != current_value:
-                spec_to_merge[to_camel_case(param)] = value
+                spec_to_merge[spec_name] = value
 
         return self.update_object_definition(cluster_name, cluster_definition, spec_to_merge)
 

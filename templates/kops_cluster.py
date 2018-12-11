@@ -45,12 +45,12 @@ options:
   state:
      description:
        - If C(present), cluster will be created
-       - If C(started), cluster will be created and check that the cluster is started
+       - If C(updated), cluster will be created and check that the cluster is updated
        - If C(absent), cluster will be deleted
      type: string
      required: false
      default: present
-     choices: [ present, started, absent ]
+     choices: [ present, updated, absent ]
 {%- for option in cluster_options + rolling_update_options %}
   {{ option.name }}:
      description:
@@ -79,10 +79,20 @@ RETURN = '''
 class KopsCluster(Kops):
     """Handle state for kops cluster"""
 
+    SPECIAL_CASE = {
+        "admin_access": {
+            "field": "kubernetesApiAccess",
+            "transform": "list"
+        },
+        "ssh_access": {
+            "transform": "list"
+        }
+    }
+
     def __init__(self):
         """Init module parameters"""
         additional_module_args = dict(
-            state=dict(choices=['present', 'absent', 'started'], default='present'),
+            state=dict(choices=['present', 'absent', 'updated'], default='present'),
             cloud=dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
 {%- for option in cluster_options + rolling_update_options %}
 {%    if option.name not in ['cloud'] -%}
@@ -117,7 +127,7 @@ class KopsCluster(Kops):
         """Create cluster using kops"""
         cmd = ["create", "cluster", "--name", cluster_name]
 
-        if self.module.params['state'] == 'started':
+        if self.module.params['state'] == 'updated':
             cmd.append("--yes")
 
         (result, out, err) = self.run_command(cmd, add_optional_args_from_tag="create")
@@ -130,20 +140,43 @@ class KopsCluster(Kops):
         )
 
 
+    def get_spec_name(self, param):
+        """
+          Send back variable name as expected in spec field from param name
+          Handle corner case like Cidr/CIDR or special case
+        """
+        if param in self.SPECIAL_CASE and self.SPECIAL_CASE[param].get('field'):
+            return self.SPECIAL_CASE[param]['field']
+
+        return to_camel_case(param).replace('Cidr', 'CIDR')
+
+    def convert_value(self, param, value):
+        """Do some transformation from string to list using SPECIAL_CASE values"""
+        if param in self.SPECIAL_CASE:
+            if self.SPECIAL_CASE[param]['transform'] == 'list':
+                return [x.strip() for x in value.split(",")]
+        # If not a special case, send unchanged value
+        return value
+
     def update_cluster(self, cluster_name):
         """Update cluster"""
         cluster_definition = self.get_clusters(cluster_name)
 
         spec_to_merge = {}
-        for param in ['kubernetes_version', 'master_public_name']:
+        cluster_parameters = [
+            'kubernetes_version', 'master_public_name', 'network_cidr',
+            'admin_access', 'ssh_access'
+        ]
+        for param in cluster_parameters:
+            spec_name = self.get_spec_name(param)
             value = self.module.params[param]
-            if to_camel_case(param) in cluster_definition['spec']:
-                current_value = cluster_definition['spec'][to_camel_case(param)]
+            if spec_name in cluster_definition['spec']:
+                current_value = cluster_definition['spec'][spec_name]
             else:
                 current_value = None
 
             if value is not None and value != current_value:
-                spec_to_merge[to_camel_case(param)] = value
+                spec_to_merge[spec_name] = value
 
         return self.update_object_definition(cluster_name, cluster_definition, spec_to_merge)
 
@@ -152,7 +185,7 @@ class KopsCluster(Kops):
         """Create cluster if does not exist"""
         if defined_cluster:
             changed = self.update_cluster(cluster_name)
-            if self.module.params['state'] == 'started':
+            if self.module.params['state'] == 'updated':
                 return self._apply_modifications(cluster_name)
             if changed:
                 defined_cluster = self.get_clusters(cluster_name)
@@ -184,7 +217,7 @@ class KopsCluster(Kops):
             failed_when_not_found=False
         )
 
-        if state in ['present', 'started']:
+        if state in ['present', 'updated']:
             return self.apply_present(cluster_name, defined_cluster)
 
         if state == 'absent':

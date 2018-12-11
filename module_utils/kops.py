@@ -233,10 +233,10 @@ class Kops():
         clusters_definitions = {}
         for cluster in out.split("---\n"):
             cluster_definition = yaml.load(cluster)
-            cluster_name = cluster_definition['metadata']['name']
+            _cluster_name = cluster_definition['metadata']['name']
             if retrieve_ig:
-                cluster_definition["instancegroups"] = self.get_nodes(cluster_name)
-            clusters_definitions[cluster_name] = cluster_definition
+                cluster_definition["instancegroups"] = self.get_nodes(_cluster_name)
+            clusters_definitions[_cluster_name] = cluster_definition
         if cluster_name is not None:
             return clusters_definitions[cluster_name]
         return clusters_definitions
