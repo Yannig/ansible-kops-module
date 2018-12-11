@@ -27,7 +27,9 @@ export KOPS_STATE_STORE=s3://my-state-store-in-s3
 
 You will also need to export this variable to let Ansible detect kops module utils:
 
-    export ANSIBLE_MODULE_UTILS=./module_utils
+```shell
+export ANSIBLE_MODULE_UTILS=./module_utils
+```
 
 ### Retrieve facts from kops cluster
 
