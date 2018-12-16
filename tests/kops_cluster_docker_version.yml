@@ -28,7 +28,7 @@
         name: "{{ cluster_name }}"
 
     - name: "Create kops cluster version 1.11.5 with docker 18.06.1"
-      tags: [ "present", "1.10.11" ]
+      tags: [ "updated", "1.11.5" ]
       kops_cluster:
         name: "{{ cluster_name }}"
         zones:  "{{ cluster_zones }}"
