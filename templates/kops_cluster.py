@@ -51,6 +51,12 @@ options:
      required: false
      default: present
      choices: [ present, updated, absent ]
+  additional_policies:
+     description:
+       - Additional policies for nodes in kops cluster
+     type: dict
+     required: false
+     default: None
   docker:
      description:
        - Docker configuration
@@ -101,6 +107,7 @@ class KopsCluster(Kops):
             state=dict(choices=['present', 'absent', 'updated'], default='present'),
             cloud=dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
             docker=dict(type=dict),
+            additional_policies=dict(type=dict, aliases=['additional-policies', 'additionalPolicies']),
 {%- for option in cluster_options + rolling_update_options %}
 {%    if option.name not in ['cloud'] -%}
 {{''}}            {{ option.name }}=dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
@@ -176,7 +183,7 @@ class KopsCluster(Kops):
         spec_to_merge = {}
         cluster_parameters = [
             'kubernetes_version', 'master_public_name', 'network_cidr',
-            'admin_access', 'ssh_access', 'docker'
+            'admin_access', 'ssh_access', 'docker', 'additional_policies',
         ]
         for param in cluster_parameters:
             spec_name = self.get_spec_name(param)
