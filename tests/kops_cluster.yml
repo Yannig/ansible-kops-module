@@ -25,7 +25,7 @@
         zones:  "{{ cluster_zones }}"
         master_count: 1
         node_count: 1
-        state: started
+        state: updated
 
     - name: "Create kops cluster"
       tags: "present"

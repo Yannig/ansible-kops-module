@@ -22,7 +22,7 @@
       kops_ig:
         name: "{{ cluster_name }}"
         ig_name: "test"
-        state: started
+        state: updated
 
     - name: "Update kops instance group test"
       tags: "update"

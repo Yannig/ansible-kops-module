@@ -15,6 +15,9 @@ kops_cluster: render-modules
 kops_cluster_version: render-modules
 	ANSIBLE_MODULE_UTILS=./module_utils $(ANSIBLE_CMD) tests/kops_cluster_version.yml -e cluster_name=$(CLUSTER_NAME)
 
+kops_cluster_docker_version: render-modules
+	ANSIBLE_MODULE_UTILS=./module_utils $(ANSIBLE_CMD) tests/kops_cluster_docker_version.yml -e cluster_name=$(CLUSTER_NAME)
+
 kops_ig: render-modules
 	ANSIBLE_MODULE_UTILS=./module_utils $(ANSIBLE_CMD) tests/kops_ig.yml -e cluster_name=$(CLUSTER_NAME)
 

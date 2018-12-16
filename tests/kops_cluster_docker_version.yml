@@ -1,0 +1,42 @@
+---
+
+- name: "Tests kops cluster"
+  hosts: localhost
+  connection: local
+  vars:
+    cluster_name: "test.fqdn"
+    cluster_zones: "us-east-1a"
+  environment:
+    KUBECONFIG: "{{ playbook_dir}}/kubeconfig"
+  gather_facts: no
+  tasks:
+
+    - name: "Create kops cluster version 1.10.11 with docker 17.09.1"
+      tags: [ "present", "1.10.11" ]
+      kops_cluster:
+        name: "{{ cluster_name }}"
+        zones:  "{{ cluster_zones }}"
+        master_count: 1
+        node_count: 1
+        kubernetes_version: 1.10.11
+        docker:
+          version: 17.09.0
+        state: present
+
+    - name: "Retrieve kops cluster facts (full)"
+      kops_facts:
+        name: "{{ cluster_name }}"
+
+    - name: "Create kops cluster version 1.11.5 with docker 18.06.1"
+      tags: [ "present", "1.10.11" ]
+      kops_cluster:
+        name: "{{ cluster_name }}"
+        zones:  "{{ cluster_zones }}"
+        master_count: 1
+        node_count: 1
+        kubernetes_version: 1.11.5
+        docker:
+          version: 18.06.1
+        state: updated
+
+    - debug: var=kops_clusters_definitions

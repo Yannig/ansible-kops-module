@@ -45,12 +45,18 @@ options:
   state:
      description:
        - If C(present), cluster will be created
-       - If C(started), cluster will be created and check that the cluster is started
+       - If C(updated), cluster will be created and check that the cluster is updated
        - If C(absent), cluster will be deleted
      type: string
      required: false
      default: present
-     choices: [ present, started, absent ]
+     choices: [ present, updated, absent ]
+  docker:
+     description:
+       - Docker configuration
+     type: dict
+     required: false
+     default: None
   admin_access:
      description:
        - Restrict API access to this CIDR.  If not set, access will not be restricted by IP.
@@ -105,9 +111,15 @@ options:
      type: string
      required: false
      default: None
+  disable_subnet_tags:
+     description:
+       - Set to disable automatic subnet tagging
+     type: bool
+     required: false
+     default: None
   dns:
      description:
-       - DNS hosted zone to use: public|private. Default is 'public'.
+       - DNS hosted zone to use: public|private.
      type: string
      required: false
      default: 'Public'
@@ -269,7 +281,7 @@ options:
      default: 'direct'
   topology:
      description:
-       - Controls network topology for the cluster. public|private. Default is 'public'.
+       - Controls network topology for the cluster: public|private.
      type: string
      required: false
      default: 'public'
@@ -378,8 +390,9 @@ class KopsCluster(Kops):
     def __init__(self):
         """Init module parameters"""
         additional_module_args = dict(
-            state=dict(choices=['present', 'absent', 'started'], default='present'),
+            state=dict(choices=['present', 'absent', 'updated'], default='present'),
             cloud=dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
+            docker=dict(type=dict),
             admin_access=dict(type=str, aliases=['admin-access']),
             api_loadbalancer_type=dict(type=str, aliases=['api-loadbalancer-type']),
             api_ssl_certificate=dict(type=str, aliases=['api-ssl-certificate']),
@@ -389,6 +402,7 @@ class KopsCluster(Kops):
             channel=dict(type=str),
 
             cloud_labels=dict(type=str, aliases=['cloud-labels']),
+            disable_subnet_tags=dict(type=bool, aliases=['disable-subnet-tags']),
             dns=dict(type=str),
             dns_zone=dict(type=str, aliases=['dns-zone']),
             dry_run=dict(type=bool, aliases=['dry-run']),
@@ -441,7 +455,8 @@ class KopsCluster(Kops):
             'channel': {'name': 'channel', 'alias': 'channel', 'type': 'str', 'help': 'Channel for default versions and configuration to use', 'default': "'stable'", 'tag': 'create'},
             'cloud': {'name': 'cloud', 'alias': 'cloud', 'type': 'str', 'help': 'Cloud provider to use - gce, aws, vsphere', 'default': None, 'tag': 'create'},
             'cloud_labels': {'name': 'cloud_labels', 'alias': 'cloud-labels', 'type': 'str', 'help': 'A list of KV pairs used to tag all instance groups in AWS (eg "Owner=John Doe,Team=Some Team").', 'default': None, 'tag': 'create'},
-            'dns': {'name': 'dns', 'alias': 'dns', 'type': 'str', 'help': "DNS hosted zone to use: public|private. Default is 'public'.", 'default': "'Public'", 'tag': 'create'},
+            'disable_subnet_tags': {'name': 'disable_subnet_tags', 'alias': 'disable-subnet-tags', 'type': 'bool', 'help': 'Set to disable automatic subnet tagging', 'default': None, 'tag': 'create'},
+            'dns': {'name': 'dns', 'alias': 'dns', 'type': 'str', 'help': 'DNS hosted zone to use: public|private.', 'default': "'Public'", 'tag': 'create'},
             'dns_zone': {'name': 'dns_zone', 'alias': 'dns-zone', 'type': 'str', 'help': 'DNS hosted zone to use (defaults to longest matching zone)', 'default': None, 'tag': 'create'},
             'dry_run': {'name': 'dry_run', 'alias': 'dry-run', 'type': 'bool', 'help': 'If true, only print the object that would be sent, without sending it. This flag can be used to create a cluster YAML or JSON manifest.', 'default': None, 'tag': 'create'},
             'encrypt_etcd_storage': {'name': 'encrypt_etcd_storage', 'alias': 'encrypt-etcd-storage', 'type': 'bool', 'help': 'Generate key in aws kms and use it for encrypt etcd volumes', 'default': None, 'tag': 'create'},
@@ -468,7 +483,7 @@ class KopsCluster(Kops):
             'ssh_public_key': {'name': 'ssh_public_key', 'alias': 'ssh-public-key', 'type': 'str', 'help': 'SSH public key to use (defaults to ~/.ssh/id_rsa.pub on AWS)', 'default': None, 'tag': 'create'},
             'subnets': {'name': 'subnets', 'alias': 'subnets', 'type': 'list', 'help': 'Set to use shared subnets', 'default': None, 'tag': 'create'},
             'target': {'name': 'target', 'alias': 'target', 'type': 'str', 'help': 'Valid targets: direct, terraform, cloudformation. Set this flag to terraform if you want kops to generate terraform', 'default': "'direct'", 'tag': 'create'},
-            'topology': {'name': 'topology', 'alias': 'topology', 'type': 'str', 'help': "Controls network topology for the cluster. public|private. Default is 'public'.", 'default': "'public'", 'tag': 'create'},
+            'topology': {'name': 'topology', 'alias': 'topology', 'type': 'str', 'help': 'Controls network topology for the cluster: public|private.', 'default': "'public'", 'tag': 'create'},
             'utility_subnets': {'name': 'utility_subnets', 'alias': 'utility-subnets', 'type': 'list', 'help': 'Set to use shared utility subnets', 'default': None, 'tag': 'create'},
             'vpc': {'name': 'vpc', 'alias': 'vpc', 'type': 'str', 'help': 'Set to use a shared VPC', 'default': None, 'tag': 'create'},
             'zones': {'name': 'zones', 'alias': 'zones', 'type': 'list', 'help': 'Zones in which to run the cluster', 'default': None, 'tag': 'create'},
@@ -503,12 +518,16 @@ class KopsCluster(Kops):
         """Create cluster using kops"""
         cmd = ["create", "cluster", "--name", cluster_name]
 
-        if self.module.params['state'] == 'started':
+        if self.module.params['state'] in ['updated', 'started']:
             cmd.append("--yes")
 
         (result, out, err) = self.run_command(cmd, add_optional_args_from_tag="create")
         if result > 0:
             self.module.fail_json(msg=err)
+
+        # Handle docker definition (version, options)
+        self.update_cluster(cluster_name)
+
         return dict(
             changed=True,
             cluster_name=cluster_name,
@@ -541,7 +560,7 @@ class KopsCluster(Kops):
         spec_to_merge = {}
         cluster_parameters = [
             'kubernetes_version', 'master_public_name', 'network_cidr',
-            'admin_access', 'ssh_access'
+            'admin_access', 'ssh_access', 'docker'
         ]
         for param in cluster_parameters:
             spec_name = self.get_spec_name(param)
@@ -561,7 +580,7 @@ class KopsCluster(Kops):
         """Create cluster if does not exist"""
         if defined_cluster:
             changed = self.update_cluster(cluster_name)
-            if self.module.params['state'] == 'started':
+            if self.module.params['state'] in ['updated', 'started']:
                 return self._apply_modifications(cluster_name)
             if changed:
                 defined_cluster = self.get_clusters(cluster_name)
@@ -593,7 +612,7 @@ class KopsCluster(Kops):
             failed_when_not_found=False
         )
 
-        if state in ['present', 'started']:
+        if state in ['present', 'updated']:
             return self.apply_present(cluster_name, defined_cluster)
 
         if state == 'absent':

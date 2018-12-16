@@ -51,6 +51,12 @@ options:
      required: false
      default: present
      choices: [ present, updated, absent ]
+  docker:
+     description:
+       - Docker configuration
+     type: dict
+     required: false
+     default: None
 {%- for option in cluster_options + rolling_update_options %}
   {{ option.name }}:
      description:
@@ -94,6 +100,7 @@ class KopsCluster(Kops):
         additional_module_args = dict(
             state=dict(choices=['present', 'absent', 'updated'], default='present'),
             cloud=dict(choices=['gce', 'aws', 'vsphere'], default='aws'),
+            docker=dict(type=dict),
 {%- for option in cluster_options + rolling_update_options %}
 {%    if option.name not in ['cloud'] -%}
 {{''}}            {{ option.name }}=dict(type={{ option.type|replace('list','str') }}{% if option.alias != option.name %}, aliases=['{{ option.alias }}']{% endif %}),
@@ -127,12 +134,16 @@ class KopsCluster(Kops):
         """Create cluster using kops"""
         cmd = ["create", "cluster", "--name", cluster_name]
 
-        if self.module.params['state'] == 'updated':
+        if self.module.params['state'] in ['updated', 'started']:
             cmd.append("--yes")
 
         (result, out, err) = self.run_command(cmd, add_optional_args_from_tag="create")
         if result > 0:
             self.module.fail_json(msg=err)
+
+        # Handle docker definition (version, options)
+        self.update_cluster(cluster_name)
+
         return dict(
             changed=True,
             cluster_name=cluster_name,
@@ -165,7 +176,7 @@ class KopsCluster(Kops):
         spec_to_merge = {}
         cluster_parameters = [
             'kubernetes_version', 'master_public_name', 'network_cidr',
-            'admin_access', 'ssh_access'
+            'admin_access', 'ssh_access', 'docker'
         ]
         for param in cluster_parameters:
             spec_name = self.get_spec_name(param)
@@ -185,7 +196,7 @@ class KopsCluster(Kops):
         """Create cluster if does not exist"""
         if defined_cluster:
             changed = self.update_cluster(cluster_name)
-            if self.module.params['state'] == 'updated':
+            if self.module.params['state'] in ['updated', 'started']:
                 return self._apply_modifications(cluster_name)
             if changed:
                 defined_cluster = self.get_clusters(cluster_name)

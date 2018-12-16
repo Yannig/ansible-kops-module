@@ -180,7 +180,7 @@ class KopsInstanceGroup(Kops):
 
         self.update_ig(cluster_name, ig_name)
 
-        if self.module.params['state'] == 'updated':
+        if self.module.params['state'] in ['updated', 'started']:
             return self._apply_modifications(cluster_name)
 
         return dict(
@@ -213,7 +213,7 @@ class KopsInstanceGroup(Kops):
             if changed:
                 nodes_definition = self.get_nodes(cluster_name)
 
-            if self.module.params['state'] == 'updated':
+            if self.module.params['state'] in ['updated', 'started']:
                 return self._apply_modifications(cluster_name)
 
             return dict(
