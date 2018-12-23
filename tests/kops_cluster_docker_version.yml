@@ -19,6 +19,7 @@
         master_count: 1
         node_count: 1
         kubernetes_version: 1.10.11
+        image: kope.io/k8s-1.11-debian-stretch-amd64-hvm-ebs-2018-08-17
         docker:
           version: 17.09.0
         state: present
@@ -28,13 +29,14 @@
         name: "{{ cluster_name }}"
 
     - name: "Create kops cluster version 1.11.5 with docker 18.06.1"
-      tags: [ "updated", "1.11.5" ]
+      tags: [ "updated", "1.11.6" ]
       kops_cluster:
         name: "{{ cluster_name }}"
         zones:  "{{ cluster_zones }}"
         master_count: 1
         node_count: 1
-        kubernetes_version: 1.11.5
+        kubernetes_version: 1.11.6
+        image: kope.io/k8s-1.11-debian-stretch-amd64-hvm-ebs-2018-08-17
         docker:
           version: 18.06.1
         state: updated
