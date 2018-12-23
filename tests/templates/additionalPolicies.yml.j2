@@ -1,0 +1,47 @@
+master: &cluster_policies |
+  [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "acm:ListCertificates",
+        "acm:DescribeCertificate",
+        "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:DescribeLoadBalancerTargetGroups",
+        "autoscaling:AttachLoadBalancers",
+        "autoscaling:DetachLoadBalancers",
+        "autoscaling:DetachLoadBalancerTargetGroups",
+        "autoscaling:AttachLoadBalancerTargetGroups",
+        "route53:*",
+        "cloudformation:*",
+        "elasticloadbalancing:*",
+        "elasticloadbalancingv2:*",
+        "ec2:DescribeInstances",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeVpcs",
+        "iam:GetServerCertificate",
+        "iam:ListServerCertificates",
+        "ec2:CreateNetworkInterface",
+        "ec2:DescribeNetworkInterfaces"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Sid" : "AllowFileSystemPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "elasticfilesystem:CreateFileSystem",
+        "elasticfilesystem:CreateMountTarget"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "elasticfilesystem:*"
+      ],
+      "Resource": "arn:aws:elasticfilesystem:{{ cluster_region }}::file-system/*"
+    }
+  ]
+node: *cluster_policies
